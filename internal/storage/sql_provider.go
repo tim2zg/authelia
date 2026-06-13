@@ -51,6 +51,17 @@ func NewSQLProvider(config *schema.Configuration, name, driverName, dataSourceNa
 
 		log: logging.Logger(),
 
+		sqlUpsertActiveSession: func() string {
+			if name == providerPostgres {
+				return fmt.Sprintf(queryFmtUpsertActiveSessionPostgreSQL, tableActiveSessions)
+			}
+			return fmt.Sprintf(queryFmtUpsertActiveSession, tableActiveSessions)
+		}(),
+		sqlSelectActiveSessionsByUsername:    fmt.Sprintf(queryFmtSelectActiveSessionsByUsername, tableActiveSessions),
+		sqlSelectActiveSessionByID:           fmt.Sprintf(queryFmtSelectActiveSessionByID, tableActiveSessions),
+		sqlDeleteActiveSessionByID:           fmt.Sprintf(queryFmtDeleteActiveSessionByID, tableActiveSessions),
+		sqlUpdateActiveSessionLastActivity:   fmt.Sprintf(queryFmtUpdateActiveSessionLastActivity, tableActiveSessions),
+
 		sqlInsertAuthenticationAttempt:                         fmt.Sprintf(queryFmtInsertAuthenticationLogEntry, tableAuthenticationLogs),
 		sqlSelectAuthenticationLogsRegulationRecordsByUsername: fmt.Sprintf(queryFmtSelectAuthenticationLogsRegulationRecordsByUsername, tableAuthenticationLogs),
 		sqlSelectAuthenticationLogsRegulationRecordsByRemoteIP: fmt.Sprintf(queryFmtSelectAuthenticationLogsRegulationRecordsByRemoteIP, tableAuthenticationLogs),
@@ -209,6 +220,13 @@ type SQLProvider struct {
 	keys SQLProviderKeys
 
 	log *logrus.Logger
+
+	// Table: active_sessions.
+	sqlUpsertActiveSession               string
+	sqlSelectActiveSessionsByUsername    string
+	sqlSelectActiveSessionByID           string
+	sqlDeleteActiveSessionByID           string
+	sqlUpdateActiveSessionLastActivity   string
 
 	// Table: authentication_logs.
 	sqlInsertAuthenticationAttempt                         string
@@ -1807,6 +1825,64 @@ func (p *SQLProvider) DeleteCachedData(ctx context.Context, name string) (err er
 		}
 
 		return fmt.Errorf("error deleting cached data with name '%s': %w", name, err)
+	}
+
+	return nil
+}
+
+// SaveActiveSession saves an active session to the database.
+func (p *SQLProvider) SaveActiveSession(ctx context.Context, session model.ActiveSession) (err error) {
+	if _, err = p.db.ExecContext(ctx, p.sqlUpsertActiveSession,
+		session.ID, session.Username, session.IPAddress, session.UserAgent, session.CreatedAt, session.LastActivity); err != nil {
+		return fmt.Errorf("error upserting active session for user '%s': %w", session.Username, err)
+	}
+
+	return nil
+}
+
+// LoadActiveSessionsByUsername loads all active sessions for a given username.
+func (p *SQLProvider) LoadActiveSessionsByUsername(ctx context.Context, username string) (sessions []model.ActiveSession, err error) {
+	sessions = make([]model.ActiveSession, 0)
+
+	if err = p.db.SelectContext(ctx, &sessions, p.sqlSelectActiveSessionsByUsername, username); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("error selecting active sessions for user '%s': %w", username, err)
+	}
+
+	return sessions, nil
+}
+
+// LoadActiveSessionByID loads an active session by ID.
+func (p *SQLProvider) LoadActiveSessionByID(ctx context.Context, id string) (session *model.ActiveSession, err error) {
+	session = &model.ActiveSession{}
+
+	if err = p.db.GetContext(ctx, session, p.sqlSelectActiveSessionByID, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("error selecting active session with id '%s': %w", id, err)
+	}
+
+	return session, nil
+}
+
+// DeleteActiveSessionByID deletes an active session by ID.
+func (p *SQLProvider) DeleteActiveSessionByID(ctx context.Context, id string) (err error) {
+	if _, err = p.db.ExecContext(ctx, p.sqlDeleteActiveSessionByID, id); err != nil {
+		return fmt.Errorf("error deleting active session with id '%s': %w", id, err)
+	}
+
+	return nil
+}
+
+// UpdateActiveSessionLastActivity updates the last activity timestamp of an active session.
+func (p *SQLProvider) UpdateActiveSessionLastActivity(ctx context.Context, id string, lastActivity time.Time) (err error) {
+	if _, err = p.db.ExecContext(ctx, p.sqlUpdateActiveSessionLastActivity, lastActivity, id); err != nil {
+		return fmt.Errorf("error updating last activity for active session with id '%s': %w", id, err)
 	}
 
 	return nil

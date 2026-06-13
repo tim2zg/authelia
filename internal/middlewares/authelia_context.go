@@ -404,6 +404,27 @@ func (ctx *AutheliaCtx) GetSession() (userSession session.UserSession, err error
 		}
 	}
 
+	// Check if this authenticated session has been revoked from database.
+	if userSession.Username != "" {
+		sessionID, errID := provider.GetSessionID(ctx.RequestCtx)
+		if errID == nil && sessionID != "" {
+			dbSession, errStore := ctx.Providers.StorageProvider.LoadActiveSessionByID(ctx, sessionID)
+			if errStore == nil && dbSession == nil {
+				// The session was revoked/deleted in the database!
+				ctx.Logger.Infof("Destroying session for user '%s' as it has been revoked from database", userSession.Username)
+				if err = provider.DestroySession(ctx.RequestCtx); err != nil {
+					ctx.Logger.WithError(err).Error("Error occurred trying to destroy the revoked session cookie")
+				}
+				userSession = provider.NewDefaultUserSession()
+			} else if errStore == nil && dbSession != nil {
+				// Session is valid. Throttled update of last activity timestamp.
+				if time.Since(dbSession.LastActivity) > time.Minute {
+					_ = ctx.Providers.StorageProvider.UpdateActiveSessionLastActivity(ctx, sessionID, time.Now())
+				}
+			}
+		}
+	}
+
 	return userSession, nil
 }
 
@@ -414,7 +435,29 @@ func (ctx *AutheliaCtx) SaveSession(userSession session.UserSession) error {
 		return fmt.Errorf("unable to save user session: %s", err)
 	}
 
-	return provider.SaveSession(ctx.RequestCtx, userSession)
+	err = provider.SaveSession(ctx.RequestCtx, userSession)
+	if err != nil {
+		return err
+	}
+
+	if userSession.Username != "" {
+		sessionID, err := provider.GetSessionID(ctx.RequestCtx)
+		if err == nil && sessionID != "" {
+			activeSession := model.ActiveSession{
+				ID:           sessionID,
+				Username:     userSession.Username,
+				IPAddress:    ctx.RemoteIP().String(),
+				UserAgent:    string(ctx.Request.Header.UserAgent()),
+				CreatedAt:    time.Now(),
+				LastActivity: time.Now(),
+			}
+			if errStore := ctx.Providers.StorageProvider.SaveActiveSession(ctx, activeSession); errStore != nil {
+				ctx.Logger.WithError(errStore).Errorf("Failed to save active session in DB for user '%s'", userSession.Username)
+			}
+		}
+	}
+
+	return nil
 }
 
 // RegenerateSession regenerates a user session.
@@ -424,7 +467,20 @@ func (ctx *AutheliaCtx) RegenerateSession() (err error) {
 		return fmt.Errorf("unable to regenerate user session: %s", err)
 	}
 
-	return provider.RegenerateSession(ctx.RequestCtx)
+	oldSessionID, oldIDErr := provider.GetSessionID(ctx.RequestCtx)
+
+	err = provider.RegenerateSession(ctx.RequestCtx)
+	if err != nil {
+		return err
+	}
+
+	if oldIDErr == nil && oldSessionID != "" {
+		if errStore := ctx.Providers.StorageProvider.DeleteActiveSessionByID(ctx, oldSessionID); errStore != nil {
+			ctx.Logger.WithError(errStore).Errorf("Failed to delete active session in DB for old session '%s'", oldSessionID)
+		}
+	}
+
+	return nil
 }
 
 // DestroySession destroys a user session.
@@ -434,7 +490,20 @@ func (ctx *AutheliaCtx) DestroySession() (err error) {
 		return fmt.Errorf("unable to destroy user session: %s", err)
 	}
 
-	return provider.DestroySession(ctx.RequestCtx)
+	sessionID, getIDErr := provider.GetSessionID(ctx.RequestCtx)
+
+	err = provider.DestroySession(ctx.RequestCtx)
+	if err != nil {
+		return err
+	}
+
+	if getIDErr == nil && sessionID != "" {
+		if errStore := ctx.Providers.StorageProvider.DeleteActiveSessionByID(ctx, sessionID); errStore != nil {
+			ctx.Logger.WithError(errStore).Errorf("Failed to delete active session in DB for session '%s'", sessionID)
+		}
+	}
+
+	return nil
 }
 
 // GetDefaultRedirectionURL retrieves the default redirection URL for the request.

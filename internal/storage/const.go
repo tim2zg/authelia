@@ -5,6 +5,7 @@ import (
 )
 
 const (
+	tableActiveSessions       = "active_sessions"
 	tableAuthenticationLogs   = "authentication_logs"
 	tableBannedUser           = "banned_user"
 	tableBannedIP             = "banned_ip"

@@ -1435,3 +1435,76 @@ func (mr *MockStorageMockRecorder) UpdateWebAuthnCredentialSignIn(ctx, credentia
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateWebAuthnCredentialSignIn", reflect.TypeOf((*MockStorage)(nil).UpdateWebAuthnCredentialSignIn), ctx, credential)
 }
+
+// SaveActiveSession mocks base method.
+func (m *MockStorage) SaveActiveSession(ctx context.Context, session model.ActiveSession) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveActiveSession", ctx, session)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SaveActiveSession indicates an expected call of SaveActiveSession.
+func (mr *MockStorageMockRecorder) SaveActiveSession(ctx, session any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveActiveSession", reflect.TypeOf((*MockStorage)(nil).SaveActiveSession), ctx, session)
+}
+
+// LoadActiveSessionsByUsername mocks base method.
+func (m *MockStorage) LoadActiveSessionsByUsername(ctx context.Context, username string) ([]model.ActiveSession, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LoadActiveSessionsByUsername", ctx, username)
+	ret0, _ := ret[0].([]model.ActiveSession)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LoadActiveSessionsByUsername indicates an expected call of LoadActiveSessionsByUsername.
+func (mr *MockStorageMockRecorder) LoadActiveSessionsByUsername(ctx, username any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadActiveSessionsByUsername", reflect.TypeOf((*MockStorage)(nil).LoadActiveSessionsByUsername), ctx, username)
+}
+
+// LoadActiveSessionByID mocks base method.
+func (m *MockStorage) LoadActiveSessionByID(ctx context.Context, id string) (*model.ActiveSession, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LoadActiveSessionByID", ctx, id)
+	ret0, _ := ret[0].(*model.ActiveSession)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LoadActiveSessionByID indicates an expected call of LoadActiveSessionByID.
+func (mr *MockStorageMockRecorder) LoadActiveSessionByID(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadActiveSessionByID", reflect.TypeOf((*MockStorage)(nil).LoadActiveSessionByID), ctx, id)
+}
+
+// DeleteActiveSessionByID mocks base method.
+func (m *MockStorage) DeleteActiveSessionByID(ctx context.Context, id string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteActiveSessionByID", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteActiveSessionByID indicates an expected call of DeleteActiveSessionByID.
+func (mr *MockStorageMockRecorder) DeleteActiveSessionByID(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteActiveSessionByID", reflect.TypeOf((*MockStorage)(nil).DeleteActiveSessionByID), ctx, id)
+}
+
+// UpdateActiveSessionLastActivity mocks base method.
+func (m *MockStorage) UpdateActiveSessionLastActivity(ctx context.Context, id string, lastActivity time.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateActiveSessionLastActivity", ctx, id, lastActivity)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateActiveSessionLastActivity indicates an expected call of UpdateActiveSessionLastActivity.
+func (mr *MockStorageMockRecorder) UpdateActiveSessionLastActivity(ctx, id, lastActivity any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateActiveSessionLastActivity", reflect.TypeOf((*MockStorage)(nil).UpdateActiveSessionLastActivity), ctx, id, lastActivity)
+}
+

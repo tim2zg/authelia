@@ -220,6 +220,9 @@ func handlerMain(ctx context.Context, config *schema.Configuration, providers mi
 
 	r.GET("/api/state", middlewareAPI(handlers.StateGET))
 
+	r.GET("/api/session/active", middleware1FA(handlers.ActiveSessionsGET))
+	r.DELETE("/api/session/active/{id}", middleware1FA(handlers.ActiveSessionDELETE))
+
 	r.GET("/api/configuration", middleware1FA(handlers.ConfigurationGET))
 
 	r.GET("/api/configuration/password-policy", middlewareAPI(handlers.PasswordPolicyConfigurationGET))

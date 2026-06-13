@@ -329,6 +329,25 @@ type Provider interface {
 	// SchemaEncryptionCheckKey checks the encryption key configured is valid for the storage provider.
 	SchemaEncryptionCheckKey(ctx context.Context, verbose bool) (result EncryptionValidationResult, err error)
 
+	/*
+		Implementation for Active Sessions.
+	*/
+
+	// SaveActiveSession saves an active session to the database.
+	SaveActiveSession(ctx context.Context, session model.ActiveSession) (err error)
+
+	// LoadActiveSessionsByUsername loads all active sessions for a given username.
+	LoadActiveSessionsByUsername(ctx context.Context, username string) (sessions []model.ActiveSession, err error)
+
+	// LoadActiveSessionByID loads an active session by ID.
+	LoadActiveSessionByID(ctx context.Context, id string) (session *model.ActiveSession, err error)
+
+	// DeleteActiveSessionByID deletes an active session by ID.
+	DeleteActiveSessionByID(ctx context.Context, id string) (err error)
+
+	// UpdateActiveSessionLastActivity updates the last activity timestamp of an active session.
+	UpdateActiveSessionLastActivity(ctx context.Context, id string, lastActivity time.Time) (err error)
+
 	RegulatorProvider
 	CachedDataProvider
 }

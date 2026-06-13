@@ -82,6 +82,15 @@ func (p *Session) RegenerateSession(ctx *fasthttp.RequestCtx) error {
 	return p.sessionHolder.Regenerate(ctx)
 }
 
+// GetSessionID gets the session ID.
+func (p *Session) GetSessionID(ctx *fasthttp.RequestCtx) (string, error) {
+	store, err := p.sessionHolder.Get(ctx)
+	if err != nil {
+		return "", err
+	}
+	return string(store.GetSessionID()), nil
+}
+
 // DestroySession destroy a session ID and delete the cookie.
 func (p *Session) DestroySession(ctx *fasthttp.RequestCtx) error {
 	return p.sessionHolder.Destroy(ctx)
