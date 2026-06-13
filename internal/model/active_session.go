@@ -10,4 +10,5 @@ type ActiveSession struct {
 	UserAgent    string    `db:"user_agent" json:"user_agent"`
 	CreatedAt    time.Time `db:"created_at" json:"created_at"`
 	LastActivity time.Time `db:"last_activity" json:"last_activity"`
+	Revoked      bool      `db:"revoked" json:"revoked"`
 }

@@ -120,8 +120,8 @@ func ActiveSessionDELETE(ctx *middlewares.AutheliaCtx) {
 		return
 	}
 
-	if err = ctx.Providers.StorageProvider.DeleteActiveSessionByID(ctx, targetID); err != nil {
-		ctx.Logger.WithError(err).Errorf("Error occurred deleting active session '%s' from DB", targetID)
+	if err = ctx.Providers.StorageProvider.RevokeActiveSessionByID(ctx, targetID); err != nil {
+		ctx.Logger.WithError(err).Errorf("Error occurred revoking active session '%s' from DB", targetID)
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.SetJSONError(messageOperationFailed)
 		return

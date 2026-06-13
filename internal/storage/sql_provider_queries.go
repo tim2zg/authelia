@@ -623,28 +623,33 @@ const (
 
 const (
 	queryFmtUpsertActiveSession = `
-		REPLACE INTO %s (id, username, ip_address, user_agent, created_at, last_activity)
-		VALUES (?, ?, ?, ?, ?, ?);`
+		REPLACE INTO %s (id, username, ip_address, user_agent, created_at, last_activity, revoked)
+		VALUES (?, ?, ?, ?, ?, ?, ?);`
 
 	queryFmtUpsertActiveSessionPostgreSQL = `
-		INSERT INTO %s (id, username, ip_address, user_agent, created_at, last_activity)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO %s (id, username, ip_address, user_agent, created_at, last_activity, revoked)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 			ON CONFLICT (id)
-			DO UPDATE SET last_activity = $6, ip_address = $3, user_agent = $4;`
+			DO UPDATE SET last_activity = $6, ip_address = $3, user_agent = $4, revoked = $7;`
 
 	queryFmtSelectActiveSessionsByUsername = `
-		SELECT id, username, ip_address, user_agent, created_at, last_activity
+		SELECT id, username, ip_address, user_agent, created_at, last_activity, revoked
 		FROM %s
 		WHERE username = ?
 		ORDER BY last_activity DESC;`
 
 	queryFmtSelectActiveSessionByID = `
-		SELECT id, username, ip_address, user_agent, created_at, last_activity
+		SELECT id, username, ip_address, user_agent, created_at, last_activity, revoked
 		FROM %s
 		WHERE id = ?;`
 
 	queryFmtDeleteActiveSessionByID = `
 		DELETE FROM %s
+		WHERE id = ?;`
+
+	queryFmtUpdateActiveSessionRevoked = `
+		UPDATE %s
+		SET revoked = TRUE
 		WHERE id = ?;`
 
 	queryFmtUpdateActiveSessionLastActivity = `

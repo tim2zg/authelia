@@ -342,8 +342,8 @@ type Provider interface {
 	// LoadActiveSessionByID loads an active session by ID.
 	LoadActiveSessionByID(ctx context.Context, id string) (session *model.ActiveSession, err error)
 
-	// DeleteActiveSessionByID deletes an active session by ID.
-	DeleteActiveSessionByID(ctx context.Context, id string) (err error)
+	// RevokeActiveSessionByID revokes an active session by ID.
+	RevokeActiveSessionByID(ctx context.Context, id string) (err error)
 
 	// UpdateActiveSessionLastActivity updates the last activity timestamp of an active session.
 	UpdateActiveSessionLastActivity(ctx context.Context, id string, lastActivity time.Time) (err error)

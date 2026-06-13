@@ -411,15 +411,29 @@ func (ctx *AutheliaCtx) GetSession() (userSession session.UserSession, err error
 			sessionHash := utils.HashSHA256FromString(sessionID)
 			dbSession, errStore := ctx.Providers.StorageProvider.LoadActiveSessionByID(ctx, sessionHash)
 			if errStore == nil && dbSession == nil {
-				// The session was revoked/deleted in the database!
-				ctx.Logger.Infof("Destroying session for user '%s' as it has been revoked from database", userSession.Username)
-				if err = provider.DestroySession(ctx.RequestCtx); err != nil {
-					ctx.Logger.WithError(err).Error("Error occurred trying to destroy the revoked session cookie")
+				// The session is valid in Redis but missing from DB (legacy session). We migrate it on the fly!
+				ctx.Logger.Infof("Importing legacy Redis session for user '%s' into the active_sessions database", userSession.Username)
+				activeSession := model.ActiveSession{
+					ID:           sessionHash,
+					Username:     userSession.Username,
+					IPAddress:    ctx.RemoteIP().String(),
+					UserAgent:    string(ctx.Request.Header.UserAgent()),
+					CreatedAt:    time.Now(),
+					LastActivity: time.Now(),
+					Revoked:      false,
 				}
-				userSession = provider.NewDefaultUserSession()
+				if errSave := ctx.Providers.StorageProvider.SaveActiveSession(ctx, activeSession); errSave != nil {
+					ctx.Logger.WithError(errSave).Errorf("Failed to save legacy active session in DB for user '%s'", userSession.Username)
+				}
 			} else if errStore == nil && dbSession != nil {
-				// Session is valid. Throttled update of last activity timestamp.
-				if time.Since(dbSession.LastActivity) > time.Minute {
+				if dbSession.Revoked {
+					// The session was revoked/deleted in the database!
+					ctx.Logger.Infof("Destroying session for user '%s' as it has been revoked from database", userSession.Username)
+					if err = provider.DestroySession(ctx.RequestCtx); err != nil {
+						ctx.Logger.WithError(err).Error("Error occurred trying to destroy the revoked session cookie")
+					}
+					userSession = provider.NewDefaultUserSession()
+				} else if time.Since(dbSession.LastActivity) > time.Minute {
 					_ = ctx.Providers.StorageProvider.UpdateActiveSessionLastActivity(ctx, sessionHash, time.Now())
 				}
 			}
@@ -451,6 +465,7 @@ func (ctx *AutheliaCtx) SaveSession(userSession session.UserSession) error {
 				UserAgent:    string(ctx.Request.Header.UserAgent()),
 				CreatedAt:    time.Now(),
 				LastActivity: time.Now(),
+				Revoked:      false,
 			}
 			if errStore := ctx.Providers.StorageProvider.SaveActiveSession(ctx, activeSession); errStore != nil {
 				ctx.Logger.WithError(errStore).Errorf("Failed to save active session in DB for user '%s'", userSession.Username)
@@ -476,8 +491,8 @@ func (ctx *AutheliaCtx) RegenerateSession() (err error) {
 	}
 
 	if oldIDErr == nil && oldSessionID != "" {
-		if errStore := ctx.Providers.StorageProvider.DeleteActiveSessionByID(ctx, utils.HashSHA256FromString(oldSessionID)); errStore != nil {
-			ctx.Logger.WithError(errStore).Errorf("Failed to delete active session in DB for old session '%s'", oldSessionID)
+		if errStore := ctx.Providers.StorageProvider.RevokeActiveSessionByID(ctx, utils.HashSHA256FromString(oldSessionID)); errStore != nil {
+			ctx.Logger.WithError(errStore).Errorf("Failed to revoke active session in DB for old session '%s'", oldSessionID)
 		}
 	}
 
@@ -499,8 +514,8 @@ func (ctx *AutheliaCtx) DestroySession() (err error) {
 	}
 
 	if getIDErr == nil && sessionID != "" {
-		if errStore := ctx.Providers.StorageProvider.DeleteActiveSessionByID(ctx, utils.HashSHA256FromString(sessionID)); errStore != nil {
-			ctx.Logger.WithError(errStore).Errorf("Failed to delete active session in DB for session '%s'", sessionID)
+		if errStore := ctx.Providers.StorageProvider.RevokeActiveSessionByID(ctx, utils.HashSHA256FromString(sessionID)); errStore != nil {
+			ctx.Logger.WithError(errStore).Errorf("Failed to revoke active session in DB for session '%s'", sessionID)
 		}
 	}
 

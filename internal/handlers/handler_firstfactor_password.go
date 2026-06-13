@@ -96,7 +96,7 @@ func FirstFactorPasswordPOST(delayer middlewares.Delayer) middlewares.RequestHan
 			return
 		}
 
-		if err = provider.DestroySession(ctx.RequestCtx); err != nil {
+		if err = ctx.DestroySession(); err != nil {
 			// This failure is not likely to be critical as we ensure to regenerate the session below.
 			ctx.Logger.WithError(err).Trace("Failed to destroy session during 1FA attempt")
 		}
@@ -104,7 +104,7 @@ func FirstFactorPasswordPOST(delayer middlewares.Delayer) middlewares.RequestHan
 		userSession := provider.NewDefaultUserSession()
 
 		// Reset all values from previous session except OIDC workflow before regenerating the cookie.
-		if err = provider.SaveSession(ctx.RequestCtx, userSession); err != nil {
+		if err = ctx.SaveSession(userSession); err != nil {
 			ctx.Logger.WithError(err).Errorf(logFmtErrSessionReset, regulation.AuthType1FA, details.Username)
 
 			respondUnauthorized(ctx, messageAuthenticationFailed)
@@ -143,7 +143,7 @@ func FirstFactorPasswordPOST(delayer middlewares.Delayer) middlewares.RequestHan
 			userSession.RefreshTTL = ctx.GetClock().Now().Add(ctx.Configuration.AuthenticationBackend.RefreshInterval.Value())
 		}
 
-		if err = provider.SaveSession(ctx.RequestCtx, userSession); err != nil {
+		if err = ctx.SaveSession(userSession); err != nil {
 			ctx.Logger.WithError(err).Errorf(logFmtErrSessionSave, "updated profile", regulation.AuthType1FA, logFmtActionAuthentication, details.Username)
 
 			respondUnauthorized(ctx, messageAuthenticationFailed)

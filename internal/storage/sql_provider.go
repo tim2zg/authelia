@@ -60,6 +60,7 @@ func NewSQLProvider(config *schema.Configuration, name, driverName, dataSourceNa
 		sqlSelectActiveSessionsByUsername:    fmt.Sprintf(queryFmtSelectActiveSessionsByUsername, tableActiveSessions),
 		sqlSelectActiveSessionByID:           fmt.Sprintf(queryFmtSelectActiveSessionByID, tableActiveSessions),
 		sqlDeleteActiveSessionByID:           fmt.Sprintf(queryFmtDeleteActiveSessionByID, tableActiveSessions),
+		sqlUpdateActiveSessionRevoked:        fmt.Sprintf(queryFmtUpdateActiveSessionRevoked, tableActiveSessions),
 		sqlUpdateActiveSessionLastActivity:   fmt.Sprintf(queryFmtUpdateActiveSessionLastActivity, tableActiveSessions),
 
 		sqlInsertAuthenticationAttempt:                         fmt.Sprintf(queryFmtInsertAuthenticationLogEntry, tableAuthenticationLogs),
@@ -226,6 +227,7 @@ type SQLProvider struct {
 	sqlSelectActiveSessionsByUsername    string
 	sqlSelectActiveSessionByID           string
 	sqlDeleteActiveSessionByID           string
+	sqlUpdateActiveSessionRevoked        string
 	sqlUpdateActiveSessionLastActivity   string
 
 	// Table: authentication_logs.
@@ -1833,7 +1835,7 @@ func (p *SQLProvider) DeleteCachedData(ctx context.Context, name string) (err er
 // SaveActiveSession saves an active session to the database.
 func (p *SQLProvider) SaveActiveSession(ctx context.Context, session model.ActiveSession) (err error) {
 	if _, err = p.db.ExecContext(ctx, p.sqlUpsertActiveSession,
-		session.ID, session.Username, session.IPAddress, session.UserAgent, session.CreatedAt, session.LastActivity); err != nil {
+		session.ID, session.Username, session.IPAddress, session.UserAgent, session.CreatedAt, session.LastActivity, session.Revoked); err != nil {
 		return fmt.Errorf("error upserting active session for user '%s': %w", session.Username, err)
 	}
 
@@ -1870,14 +1872,16 @@ func (p *SQLProvider) LoadActiveSessionByID(ctx context.Context, id string) (ses
 	return session, nil
 }
 
-// DeleteActiveSessionByID deletes an active session by ID.
-func (p *SQLProvider) DeleteActiveSessionByID(ctx context.Context, id string) (err error) {
-	if _, err = p.db.ExecContext(ctx, p.sqlDeleteActiveSessionByID, id); err != nil {
+// RevokeActiveSessionByID revokes an active session by ID.
+func (p *SQLProvider) RevokeActiveSessionByID(ctx context.Context, id string) (err error) {
+	if _, err = p.db.ExecContext(ctx, p.sqlUpdateActiveSessionRevoked, id); err != nil {
 		return fmt.Errorf("error deleting active session with id '%s': %w", id, err)
 	}
 
 	return nil
 }
+
+
 
 // UpdateActiveSessionLastActivity updates the last activity timestamp of an active session.
 func (p *SQLProvider) UpdateActiveSessionLastActivity(ctx context.Context, id string, lastActivity time.Time) (err error) {
