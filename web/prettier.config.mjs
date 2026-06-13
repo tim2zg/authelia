@@ -1,6 +1,7 @@
 export default {
     bracketSameLine: false,
     bracketSpacing: true,
+    endOfLine: "auto",
     overrides: [
         {
             files: ["package.json"],
