@@ -1346,6 +1346,13 @@ func TestAutheliaCtx_GetWebAuthnProvider(t *testing.T) {
 	provider, err = mock.Ctx.GetWebAuthnProvider()
 	assert.NotNil(t, provider)
 	assert.NoError(t, err)
+
+	mock.Ctx.Configuration.WebAuthn.AdditionalOrigins = []string{"android:apk-key-hash:N0jfCCFLdebzDYmflSAfOdriZ8duHhoftzjU_VMrRas"}
+
+	provider, err = mock.Ctx.GetWebAuthnProvider()
+	assert.NotNil(t, provider)
+	assert.NoError(t, err)
+	assert.Contains(t, provider.Config.RPOrigins, "android:apk-key-hash:N0jfCCFLdebzDYmflSAfOdriZ8duHhoftzjU_VMrRas")
 }
 
 func TestAutheliaCtx_RecordAuthn(t *testing.T) {

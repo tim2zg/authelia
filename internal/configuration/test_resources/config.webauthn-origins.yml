@@ -1,0 +1,6 @@
+---
+webauthn:
+  additional_origins:
+    - "android:apk-key-hash:N0jfCCFLdebzDYmflSAfOdriZ8duHhoftzjU_VMrRas"
+    - "https://another-origin.example.com"
+...

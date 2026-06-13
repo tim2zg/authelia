@@ -245,6 +245,9 @@
   ## The interaction timeout for WebAuthn dialogues in the duration common syntax.
   # timeout: '60 seconds'
 
+  ## Additional Relying Party origins allowed for WebAuthn (e.g. for native Android/iOS apps).
+  # additional_origins: []
+
   ## Authenticator Filtering.
   # filtering:
     ## Prohibits registering Authenticators that claim they can export their credentials in some way.

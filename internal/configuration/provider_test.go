@@ -287,6 +287,21 @@ func TestShouldValidateConfigurationWithoutOverriddenDefaults(t *testing.T) {
 	assert.Equal(t, protocol.VerificationPreferred, config.WebAuthn.SelectionCriteria.UserVerification)
 }
 
+func TestShouldLoadWebAuthnAdditionalOrigins(t *testing.T) {
+	val := schema.NewStructValidator()
+	_, config, err := Load(val, NewDefaultSourcesWithDefaults([]string{"./test_resources/config.webauthn-origins.yml"}, NewFileFiltersDefault(), DefaultEnvPrefix, DefaultEnvDelimiter, nil)...)
+
+	require.NoError(t, err)
+
+	validator.ValidateWebAuthn(config, val)
+
+	assert.Len(t, val.Errors(), 0)
+	assert.Len(t, val.Warnings(), 0)
+	require.Len(t, config.WebAuthn.AdditionalOrigins, 2)
+	assert.Equal(t, "android:apk-key-hash:N0jfCCFLdebzDYmflSAfOdriZ8duHhoftzjU_VMrRas", config.WebAuthn.AdditionalOrigins[0])
+	assert.Equal(t, "https://another-origin.example.com", config.WebAuthn.AdditionalOrigins[1])
+}
+
 func TestShouldValidateConfigurationWithFilters(t *testing.T) {
 	testCases := []struct {
 		name string
