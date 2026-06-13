@@ -408,7 +408,8 @@ func (ctx *AutheliaCtx) GetSession() (userSession session.UserSession, err error
 	if userSession.Username != "" {
 		sessionID, errID := provider.GetSessionID(ctx.RequestCtx)
 		if errID == nil && sessionID != "" {
-			dbSession, errStore := ctx.Providers.StorageProvider.LoadActiveSessionByID(ctx, sessionID)
+			sessionHash := utils.HashSHA256FromString(sessionID)
+			dbSession, errStore := ctx.Providers.StorageProvider.LoadActiveSessionByID(ctx, sessionHash)
 			if errStore == nil && dbSession == nil {
 				// The session was revoked/deleted in the database!
 				ctx.Logger.Infof("Destroying session for user '%s' as it has been revoked from database", userSession.Username)
@@ -419,7 +420,7 @@ func (ctx *AutheliaCtx) GetSession() (userSession session.UserSession, err error
 			} else if errStore == nil && dbSession != nil {
 				// Session is valid. Throttled update of last activity timestamp.
 				if time.Since(dbSession.LastActivity) > time.Minute {
-					_ = ctx.Providers.StorageProvider.UpdateActiveSessionLastActivity(ctx, sessionID, time.Now())
+					_ = ctx.Providers.StorageProvider.UpdateActiveSessionLastActivity(ctx, sessionHash, time.Now())
 				}
 			}
 		}
@@ -444,7 +445,7 @@ func (ctx *AutheliaCtx) SaveSession(userSession session.UserSession) error {
 		sessionID, err := provider.GetSessionID(ctx.RequestCtx)
 		if err == nil && sessionID != "" {
 			activeSession := model.ActiveSession{
-				ID:           sessionID,
+				ID:           utils.HashSHA256FromString(sessionID),
 				Username:     userSession.Username,
 				IPAddress:    ctx.RemoteIP().String(),
 				UserAgent:    string(ctx.Request.Header.UserAgent()),
@@ -475,7 +476,7 @@ func (ctx *AutheliaCtx) RegenerateSession() (err error) {
 	}
 
 	if oldIDErr == nil && oldSessionID != "" {
-		if errStore := ctx.Providers.StorageProvider.DeleteActiveSessionByID(ctx, oldSessionID); errStore != nil {
+		if errStore := ctx.Providers.StorageProvider.DeleteActiveSessionByID(ctx, utils.HashSHA256FromString(oldSessionID)); errStore != nil {
 			ctx.Logger.WithError(errStore).Errorf("Failed to delete active session in DB for old session '%s'", oldSessionID)
 		}
 	}
@@ -498,7 +499,7 @@ func (ctx *AutheliaCtx) DestroySession() (err error) {
 	}
 
 	if getIDErr == nil && sessionID != "" {
-		if errStore := ctx.Providers.StorageProvider.DeleteActiveSessionByID(ctx, sessionID); errStore != nil {
+		if errStore := ctx.Providers.StorageProvider.DeleteActiveSessionByID(ctx, utils.HashSHA256FromString(sessionID)); errStore != nil {
 			ctx.Logger.WithError(errStore).Errorf("Failed to delete active session in DB for session '%s'", sessionID)
 		}
 	}

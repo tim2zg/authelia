@@ -7,6 +7,7 @@ import (
 
 	"github.com/authelia/authelia/v4/internal/middlewares"
 	"github.com/authelia/authelia/v4/internal/session"
+	"github.com/authelia/authelia/v4/internal/utils"
 )
 
 // ActiveSessionResponse represents an active session in the JSON API response.
@@ -53,10 +54,14 @@ func ActiveSessionsGET(ctx *middlewares.AutheliaCtx) {
 	}
 
 	currentSessionID, errID := provider.GetSessionID(ctx.RequestCtx)
+	var currentSessionHash string
+	if errID == nil && currentSessionID != "" {
+		currentSessionHash = utils.HashSHA256FromString(currentSessionID)
+	}
 
 	response := make([]ActiveSessionResponse, 0, len(dbSessions))
 	for _, dbSess := range dbSessions {
-		isCurrent := errID == nil && currentSessionID != "" && dbSess.ID == currentSessionID
+		isCurrent := currentSessionHash != "" && dbSess.ID == currentSessionHash
 		response = append(response, ActiveSessionResponse{
 			ID:           dbSess.ID,
 			IPAddress:    dbSess.IPAddress,
@@ -126,7 +131,7 @@ func ActiveSessionDELETE(ctx *middlewares.AutheliaCtx) {
 	provider, err := ctx.GetSessionProvider()
 	if err == nil {
 		currentSessionID, errID := provider.GetSessionID(ctx.RequestCtx)
-		if errID == nil && currentSessionID != "" && targetID == currentSessionID {
+		if errID == nil && currentSessionID != "" && targetID == utils.HashSHA256FromString(currentSessionID) {
 			if err = provider.DestroySession(ctx.RequestCtx); err != nil {
 				ctx.Logger.WithError(err).Error("Error occurred destroying current session after self-revocation")
 			}
