@@ -1,13 +1,47 @@
+# ========================================
+# ===== Build image for the frontend =====
+# ========================================
+FROM node:26-alpine@sha256:2d984a15c9b54fd0aeb608b8e0d0d83529eb34d2966db27a1fb4f1edc3d298a3 AS builder-frontend
+
+WORKDIR /node/src/app
+
+COPY --link web ./
+
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+	npm install -g pnpm@11 && \
+	pnpm install --frozen-lockfile --ignore-scripts --store-dir /pnpm/store && \
+	pnpm build
+
+# =======================================
+# ===== Build image for the backend =====
+# =======================================
+FROM golang:1.27.1-bookworm@sha256:648f440f42a0958804efb24df176f806f9d353b41f1c0627f666428e40310f6b AS builder-backend
+
+WORKDIR /go/src/app
+
+COPY --link go.mod go.sum ./
+
+RUN \
+	echo ">> Downloading go modules..." && \
+	go mod download
+
+COPY --link / ./
+
+# Prepare static files to be embedded in Go binary
+COPY --link --from=builder-frontend /node/src/internal/server/public_html internal/server/public_html
+
+ARG LDFLAGS_EXTRA
+
+RUN \
+	mv api internal/server/public_html/api && \
+	echo ">> Starting go build..." && \
+	CGO_ENABLED=1 CGO_CPPFLAGS="-D_FORTIFY_SOURCE=2 -fstack-protector-strong" CGO_LDFLAGS="-Wl,-z,relro,-z,now" go build \
+	-ldflags "-linkmode=external -s -w ${LDFLAGS_EXTRA}" -trimpath -buildmode=pie -o authelia ./cmd/authelia
+
 # ===================================
 # ===== Authelia official image =====
 # ===================================
-ARG TAG
-ARG SHA
-
-FROM authelia/base:${TAG}@sha256:${SHA}
-
-ARG TARGETOS
-ARG TARGETARCH
+FROM authelia/base:latest@sha256:2b4b7f76ebcf21bbc59fe4a035414550d0a4a37e9e3ef0f830cf4255725ed669
 
 WORKDIR /app
 
@@ -17,9 +51,9 @@ ENV \
 	PGID=0 \
 	X_AUTHELIA_CONFIG="/config/configuration.yml"
 
-COPY --link authelia-${TARGETOS}-${TARGETARCH}/authelia LICENSE entrypoint.sh healthcheck.sh ./
+COPY --link --from=builder-backend /go/src/app/authelia /go/src/app/LICENSE /go/src/app/entrypoint.sh /go/src/app/healthcheck.sh ./
 
-COPY --link --chmod=666 .healthcheck.env ./
+COPY --link	--from=builder-backend --chmod=666 /go/src/app/.healthcheck.env ./
 
 EXPOSE 9091
 

@@ -1,9 +1,26 @@
-# Ignore All
-*
+# Git and local artifacts
+.git
+*.exe
+authelia
+coverage.txt
+*.log
+
+# Node Modules Directories
+**/node_modules
+
+# Documentation & examples
+docs
+examples
+
+# Development files
+.github
+*.md
+authelia.service
+authelia-fb-rc.d
+bootstrap.sh
+
+# Exclude locally generated frontend output so Docker always builds freshly
+internal/server/public_html
 
 # Overrides
-!authelia-linux-*
-!LICENSE
-!entrypoint.sh
-!healthcheck.sh
 !.healthcheck.env
