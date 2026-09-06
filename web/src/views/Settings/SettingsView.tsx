@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
+
 import {
     AlertTriangle,
     CheckCircle2,
@@ -10,6 +10,7 @@ import {
     Trash2,
     User,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { Alert, AlertDescription, AlertTitle } from "@components/UI/Alert";
 import { Button } from "@components/UI/Button";
@@ -172,8 +173,12 @@ const SettingsView = function () {
                     <div className="flex items-start gap-3 p-3 rounded-lg border bg-muted/20 md:col-span-2">
                         <LinkIcon className="size-5 text-primary mt-0.5" />
                         <div>
-                            <p className="text-xs font-medium text-muted-foreground">{translate("Standardweiterleitung")}</p>
-                            <p className="text-sm font-medium">{state.default_redirection_url || translate("Keine konfiguriert")}</p>
+                            <p className="text-xs font-medium text-muted-foreground">
+                                {translate("Standardweiterleitung")}
+                            </p>
+                            <p className="text-sm font-medium">
+                                {state.default_redirection_url || translate("Keine konfiguriert")}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -207,7 +212,11 @@ const SettingsView = function () {
                                     >
                                         <div className="flex items-center gap-3 min-w-0">
                                             <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted/40 text-muted-foreground">
-                                                {isMobile ? <Smartphone className="size-5" /> : <Laptop className="size-5" />}
+                                                {isMobile ? (
+                                                    <Smartphone className="size-5" />
+                                                ) : (
+                                                    <Laptop className="size-5" />
+                                                )}
                                             </div>
                                             <div className="min-w-0">
                                                 <p className="text-sm font-medium truncate">{`${browser} on ${os}`}</p>
