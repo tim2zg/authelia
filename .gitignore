@@ -41,6 +41,7 @@ internal/server/public_html/robots.txt
 authelia-image-dev.tar
 
 /authelia
+/authelia.exe
 __debug_bin
 
 internal/suites/common/pki/ca/*.private.pem
