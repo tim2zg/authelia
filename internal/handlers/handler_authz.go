@@ -68,8 +68,15 @@ type AuthzContext interface {
 	// XForwardedHost should return the X-Forwarded-Host header of the request.
 	XForwardedHost() (host []byte)
 
+	// GetXForwardedHost should return the X-Forwarded-Host header of the request falling back to the Host header.
+	GetXForwardedHost() (host []byte)
+
 	// XForwardedURI should return the X-Forwarded-URI header of the request.
 	XForwardedURI() (uri []byte)
+
+	// GetXForwardedURI should return the X-Forwarded-URI header of the request falling back to the start line request
+	// path.
+	GetXForwardedURI() (uri []byte)
 
 	// XOriginalMethod should return the X-Original-Method header of the request.
 	XOriginalMethod() (method []byte)
@@ -249,15 +256,10 @@ func (authz *Authz) getAutheliaURL(ctx AuthzContext, manager session.Manager) (a
 	config := manager.GetSessionConfig()
 
 	switch {
-	case authz.implementation == AuthzImplLegacy:
-		return autheliaURL, nil
 	case autheliaURL != nil:
-		switch {
-		case utils.HasURIDomainSuffix(autheliaURL, config.Domain):
-			return autheliaURL, nil
-		default:
-			return nil, fmt.Errorf("authelia url '%s' is not valid for detected domain '%s' as the url does not have the domain as a suffix", autheliaURL.String(), config.Domain)
-		}
+		return getSafeAutheliaURL(autheliaURL, config.Domain)
+	case authz.implementation == AuthzImplLegacy:
+		return nil, nil
 	}
 
 	if config.AutheliaURL != nil {

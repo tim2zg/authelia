@@ -4,6 +4,7 @@
 package suites
 
 import (
+	"flag"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -19,6 +20,10 @@ import (
 var globalDevServer atomic.Pointer[DevServer]
 
 func TestMain(m *testing.M) {
+	flag.Parse()
+
+	startArtifactWatchdog()
+
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 
@@ -31,7 +36,13 @@ func TestMain(m *testing.M) {
 		os.Exit(130)
 	}()
 
-	os.Exit(m.Run())
+	code := m.Run()
+
+	discardWatchdogArtifacts()
+
+	closeSharedBrowsers()
+
+	os.Exit(code)
 }
 
 func findRepoRoot() (string, error) {

@@ -277,7 +277,9 @@ func (s *PAMSuite) seedUserTOTP(username string) {
 	s.Require().NoError(err, "failed to seed TOTP for %s: %s", username, output)
 
 	ctx := context.Background()
-	provider := storage.NewSQLiteProvider(&storageLocalTmpConfig)
+
+	provider, err := storage.NewSQLiteProvider(&storageLocalTmpConfig)
+	s.Require().NoError(err)
 	s.Require().NoError(provider.SavePreferred2FAMethod(ctx, username, "totp"))
 
 	s.SetOneTimePassword(username, RodSuiteCredentialOneTimePassword{
@@ -377,7 +379,7 @@ func contextDialTimeout(ctx context.Context, fallback time.Duration) time.Durati
 func dialSSHContext(ctx context.Context, addr string, cfg *ssh.ClientConfig) (*ssh.Client, error) {
 	d := &net.Dialer{Timeout: cfg.Timeout}
 
-	conn, err := d.DialContext(ctx, "tcp", addr)
+	conn, err := d.DialContext(ctx, "tcp", ResolveAddr(addr))
 	if err != nil {
 		return nil, err
 	}
@@ -410,8 +412,7 @@ func (s *PAMSuite) driveDeviceAuthConsent(ctx context.Context, t *testing.T, ver
 	s.doValidateTOTP(t, s.Context(ctx), username)
 	s.verifyIsOpenIDConsentDecisionStage(t, s.Context(ctx))
 
-	require := s.Require()
-	require.NoError(s.WaitElementLocatedByID(t, s.Context(ctx), "openid-consent-accept").Click("left", 1))
+	s.ClickElementLocatedByID(t, s.Context(ctx), "openid-consent-accept")
 
 	s.verifyBodyContains(t, s.Context(ctx), "Consent has been accepted and processed")
 }

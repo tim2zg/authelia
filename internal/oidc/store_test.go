@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -314,7 +315,7 @@ func (s *StoreSuite) TestCreateSessions() {
 			Return(nil),
 		s.mock.
 			EXPECT().
-			SaveOAuth2PARContext(s.ctx, model.OAuth2PARContext{Signature: abc, RequestID: abc, ClientID: "example", Session: sessionData}).
+			SaveOAuth2PushedAuthorizationSession(s.ctx, model.OAuth2PushedAuthorizationSession{Signature: abc, RequestID: abc, ClientID: "example", Session: sessionData}).
 			Return(nil),
 	)
 
@@ -350,7 +351,7 @@ func (s *StoreSuite) TestCreateSessions() {
 		Session: session,
 	}))
 
-	s.NoError(s.store.CreateRefreshTokenSession(s.ctx, abc, &oauthelia2.Request{
+	s.NoError(s.store.CreateRefreshTokenSession(s.ctx, abc, "", &oauthelia2.Request{
 		ID: abc,
 		Client: &oidc.RegisteredClient{
 			ID: "example",
@@ -445,16 +446,28 @@ func (s *StoreSuite) TestRevokeSessions() {
 			Return(sql.ErrNoRows),
 		s.mock.
 			EXPECT().
+			LoadOAuth2RefreshTokenSessionAccessSignature(s.ctx, "1").
+			Return("at_paired_1", nil),
+		s.mock.
+			EXPECT().
+			RevokeOAuth2Session(s.ctx, storage.OAuth2SessionTypeAccessToken, "at_paired_1").
+			Return(nil),
+		s.mock.
+			EXPECT().
 			DeactivateOAuth2SessionByRequestID(s.ctx, storage.OAuth2SessionTypeRefreshToken, "65471ccb-d650-4006-a95f-cb4f4e3d7200").
 			Return(nil),
 		s.mock.
 			EXPECT().
-			DeactivateOAuth2SessionByRequestID(s.ctx, storage.OAuth2SessionTypeRefreshToken, "65471ccb-d650-4006-a95f-cb4f4e3d7201").
+			LoadOAuth2RefreshTokenSessionAccessSignature(s.ctx, "2").
+			Return("", nil),
+		s.mock.
+			EXPECT().
+			RevokeOAuth2SessionByRequestID(s.ctx, storage.OAuth2SessionTypeAccessToken, "65471ccb-d650-4006-a95f-cb4f4e3d7201").
 			Return(fmt.Errorf("not found")),
 		s.mock.
 			EXPECT().
-			DeactivateOAuth2SessionByRequestID(s.ctx, storage.OAuth2SessionTypeRefreshToken, "65471ccb-d650-4006-a95f-cb4f4e3d7202").
-			Return(sql.ErrNoRows),
+			LoadOAuth2RefreshTokenSessionAccessSignature(s.ctx, "3").
+			Return("", fmt.Errorf("no refresh token session")),
 		s.mock.
 			EXPECT().
 			RevokeOAuth2Session(s.ctx, storage.OAuth2SessionTypePKCEChallenge, "pkce1").
@@ -473,11 +486,11 @@ func (s *StoreSuite) TestRevokeSessions() {
 			Return(fmt.Errorf("not found")),
 		s.mock.
 			EXPECT().
-			RevokeOAuth2PARContext(s.ctx, "urn:par1").
+			RevokeOAuth2PushedAuthorizationSession(s.ctx, "urn:par1").
 			Return(nil),
 		s.mock.
 			EXPECT().
-			RevokeOAuth2PARContext(s.ctx, "urn:par2").
+			RevokeOAuth2PushedAuthorizationSession(s.ctx, "urn:par2").
 			Return(fmt.Errorf("not found")),
 	)
 
@@ -498,9 +511,9 @@ func (s *StoreSuite) TestRevokeSessions() {
 	s.EqualError(s.store.RevokeRefreshToken(s.ctx, "65471ccb-d650-4006-a95f-cb4f4e3d7201"), "not found")
 	s.EqualError(s.store.RevokeRefreshToken(s.ctx, "65471ccb-d650-4006-a95f-cb4f4e3d7202"), "sql: no rows in result set")
 
-	s.NoError(s.store.RevokeRefreshTokenMaybeGracePeriod(s.ctx, "65471ccb-d650-4006-a95f-cb4f4e3d7200", "1"))
-	s.EqualError(s.store.RevokeRefreshTokenMaybeGracePeriod(s.ctx, "65471ccb-d650-4006-a95f-cb4f4e3d7201", "2"), "not found")
-	s.EqualError(s.store.RevokeRefreshTokenMaybeGracePeriod(s.ctx, "65471ccb-d650-4006-a95f-cb4f4e3d7202", "3"), "sql: no rows in result set")
+	s.NoError(s.store.RotateRefreshToken(s.ctx, "65471ccb-d650-4006-a95f-cb4f4e3d7200", "1"))
+	s.EqualError(s.store.RotateRefreshToken(s.ctx, "65471ccb-d650-4006-a95f-cb4f4e3d7201", "2"), "not found")
+	s.EqualError(s.store.RotateRefreshToken(s.ctx, "65471ccb-d650-4006-a95f-cb4f4e3d7202", "3"), "no refresh token session")
 
 	s.NoError(s.store.DeletePKCERequestSession(s.ctx, "pkce1"))
 	s.EqualError(s.store.DeletePKCERequestSession(s.ctx, "pkce2"), "not found")
@@ -547,20 +560,20 @@ func (s *StoreSuite) TestGetSessions() {
 			Return(&model.OAuth2Session{ClientID: "hs256", Session: sessionData, Active: true}, nil),
 		s.mock.
 			EXPECT().
-			LoadOAuth2PARContext(s.ctx, "urn:par").
-			Return(&model.OAuth2PARContext{Signature: abc, RequestID: abc, ClientID: "hs256", Session: sessionData}, nil),
+			LoadOAuth2PushedAuthorizationSession(s.ctx, "urn:par").
+			Return(&model.OAuth2PushedAuthorizationSession{Signature: abc, RequestID: abc, ClientID: "hs256", Session: sessionData}, nil),
 		s.mock.
 			EXPECT().
-			LoadOAuth2PARContext(s.ctx, "urn:par").
+			LoadOAuth2PushedAuthorizationSession(s.ctx, "urn:par").
 			Return(nil, sql.ErrNoRows),
 		s.mock.
 			EXPECT().
-			LoadOAuth2PARContext(s.ctx, "urn:par").
+			LoadOAuth2PushedAuthorizationSession(s.ctx, "urn:par").
 			Return(nil, fmt.Errorf("connection refused")),
 		s.mock.
 			EXPECT().
-			LoadOAuth2PARContext(s.ctx, "urn:par").
-			Return(&model.OAuth2PARContext{Signature: abc, RequestID: abc, ClientID: "hs256", Session: sessionData, Revoked: true}, nil),
+			LoadOAuth2PushedAuthorizationSession(s.ctx, "urn:par").
+			Return(&model.OAuth2PushedAuthorizationSession{Signature: abc, RequestID: abc, ClientID: "hs256", Session: sessionData, Revoked: true}, nil),
 	)
 
 	var (
@@ -814,7 +827,7 @@ func (s *StoreSuite) TestGetDeviceCodeSession() {
 
 func (s *StoreSuite) TestInvalidateDeviceCodeSession() {
 	s.T().Run("ShouldSucceed", func(t *testing.T) {
-		s.mock.EXPECT().DeactivateOAuth2DeviceCodeSession(s.ctx, abc).Return(nil)
+		s.mock.EXPECT().DeactivateOAuth2Session(s.ctx, storage.OAuth2SessionTypeDeviceAuthorizeCode, abc).Return(nil)
 
 		err := s.store.InvalidateDeviceCodeSession(s.ctx, abc)
 
@@ -822,7 +835,7 @@ func (s *StoreSuite) TestInvalidateDeviceCodeSession() {
 	})
 
 	s.T().Run("ShouldErrOnStorageFailure", func(t *testing.T) {
-		s.mock.EXPECT().DeactivateOAuth2DeviceCodeSession(s.ctx, abc).Return(fmt.Errorf("deactivate error"))
+		s.mock.EXPECT().DeactivateOAuth2Session(s.ctx, storage.OAuth2SessionTypeDeviceAuthorizeCode, abc).Return(fmt.Errorf("deactivate error"))
 
 		err := s.store.InvalidateDeviceCodeSession(s.ctx, abc)
 
@@ -885,4 +898,84 @@ func (s *StoreSuite) TestGetDeviceCodeSessionByUserCode() {
 		assert.NoError(t, err)
 		assert.NotNil(t, request)
 	})
+}
+
+func (s *StoreSuite) TestSerializationFailureMapping() {
+	errBusy := fmt.Errorf("error accessing storage: %w", sqlite3.Error{Code: sqlite3.ErrBusy})
+
+	testCases := []struct {
+		name  string
+		setup func()
+		do    func() (err error)
+	}{
+		{
+			name: "ShouldMapCommit",
+			setup: func() {
+				s.mock.EXPECT().Commit(s.ctx).Return(errBusy)
+			},
+			do: func() (err error) {
+				return s.store.Commit(s.ctx)
+			},
+		},
+		{
+			name: "ShouldMapGetRefreshTokenSession",
+			setup: func() {
+				s.mock.EXPECT().LoadOAuth2Session(s.ctx, storage.OAuth2SessionTypeRefreshToken, abc).Return(nil, errBusy)
+			},
+			do: func() (err error) {
+				_, err = s.store.GetRefreshTokenSession(s.ctx, abc, nil)
+
+				return err
+			},
+		},
+		{
+			name: "ShouldMapRotateRefreshToken",
+			setup: func() {
+				s.mock.EXPECT().LoadOAuth2RefreshTokenSessionAccessSignature(s.ctx, abc).Return("", errBusy)
+			},
+			do: func() (err error) {
+				return s.store.RotateRefreshToken(s.ctx, abc, abc)
+			},
+		},
+		{
+			name: "ShouldMapRevokeRefreshToken",
+			setup: func() {
+				s.mock.EXPECT().DeactivateOAuth2SessionByRequestID(s.ctx, storage.OAuth2SessionTypeRefreshToken, abc).Return(errBusy)
+			},
+			do: func() (err error) {
+				return s.store.RevokeRefreshToken(s.ctx, abc)
+			},
+		},
+		{
+			name: "ShouldMapDeleteAccessTokenSession",
+			setup: func() {
+				s.mock.EXPECT().RevokeOAuth2Session(s.ctx, storage.OAuth2SessionTypeAccessToken, abc).Return(errBusy)
+			},
+			do: func() (err error) {
+				return s.store.DeleteAccessTokenSession(s.ctx, abc)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		s.T().Run(tc.name, func(t *testing.T) {
+			if tc.setup != nil {
+				tc.setup()
+			}
+
+			err := tc.do()
+
+			assert.EqualError(t, err, "The request could not be completed due to concurrent access: error accessing storage: database is locked")
+			assert.ErrorIs(t, err, oauthelia2.ErrSerializationFailure)
+		})
+	}
+}
+
+func (s *StoreSuite) TestSerializationFailureMappingShouldNotAffectOtherErrors() {
+	s.mock.EXPECT().DeactivateOAuth2SessionByRequestID(s.ctx, storage.OAuth2SessionTypeRefreshToken, abc).Return(fmt.Errorf("deactivate error"))
+
+	err := s.store.RevokeRefreshToken(s.ctx, abc)
+
+	assert.EqualError(s.T(), err, "deactivate error")
+	assert.NotErrorIs(s.T(), err, oauthelia2.ErrSerializationFailure)
 }

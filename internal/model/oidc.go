@@ -162,8 +162,8 @@ func NewOAuth2DeviceCodeSessionFromRequest(r oauthelia2.DeviceAuthorizeRequester
 	}, nil
 }
 
-// NewOAuth2PARContext creates a new Pushed Authorization Request Context as a OAuth2PARContext.
-func NewOAuth2PARContext(contextID string, r oauthelia2.AuthorizeRequester) (context *OAuth2PARContext, err error) {
+// NewOAuth2PushedAuthorizationSession creates a new Pushed Authorization Request Context as a OAuth2PushedAuthorizationSession.
+func NewOAuth2PushedAuthorizationSession(contextID string, r oauthelia2.AuthorizeRequester) (context *OAuth2PushedAuthorizationSession, err error) {
 	var (
 		s       OpenIDSession
 		ok      bool
@@ -185,7 +185,7 @@ func NewOAuth2PARContext(contextID string, r oauthelia2.AuthorizeRequester) (con
 		handled = StringSlicePipeDelimited(req.HandledResponseTypes)
 	}
 
-	return &OAuth2PARContext{
+	return &OAuth2PushedAuthorizationSession{
 		Signature:            contextID,
 		RequestID:            r.GetID(),
 		ClientID:             r.GetClient().GetID(),
@@ -273,7 +273,7 @@ type OAuth2ConsentSession struct {
 	GrantedAudience   StringSlicePipeDelimited `db:"granted_audience"`
 	GrantedClaims     StringSlicePipeDelimited `db:"granted_claims"`
 
-	PreConfiguration sql.NullInt64
+	PreConfiguration sql.NullInt64 `db:"preconfiguration"`
 }
 
 // GetRequestedAt returns the requested at value.
@@ -361,20 +361,66 @@ func (s *OAuth2ConsentSession) GetForm() (form url.Values, err error) {
 	return url.ParseQuery(s.Form)
 }
 
+// GetRequestedScopes returns the requested scopes.
 func (s *OAuth2ConsentSession) GetRequestedScopes() []string {
 	return s.RequestedScopes
 }
 
+// GetGrantedScopes returns the granted scopes.
 func (s *OAuth2ConsentSession) GetGrantedScopes() []string {
 	return s.GrantedScopes
 }
 
+// GetRequestedAudience returns the requested audience.
 func (s *OAuth2ConsentSession) GetRequestedAudience() []string {
 	return s.RequestedAudience
 }
 
+// GetGrantedAudience returns the granted audience.
 func (s *OAuth2ConsentSession) GetGrantedAudience() []string {
 	return s.GrantedAudience
+}
+
+// MatchesRequester returns an error if the requester is not a technical match for this OAuth2ConsentSession. The
+// prefixPAR value must be the Pushed Authorization Request URI prefix as consent sessions generated for a Pushed
+// Authorization Request only record the 'request_uri' and 'client_id' parameters, so only those parameters are
+// compared for such sessions.
+func (s *OAuth2ConsentSession) MatchesRequester(requester oauthelia2.Requester, prefixPAR string) (err error) {
+	if s.ClientID != requester.GetClient().GetID() {
+		return oauthelia2.ErrInvalidRequest.WithDebugf("The requested client id '%s' does not match the requested client id '%s' from the consent session.", requester.GetClient().GetID(), s.ClientID)
+	}
+
+	if !oauthelia2.Arguments(s.RequestedScopes).Matches(requester.GetRequestedScopes()...) {
+		return oauthelia2.ErrInvalidRequest.WithDebugf("The requested scope '%s' does not match the requested scope '%s' from the consent session.", strings.Join(requester.GetRequestedScopes(), " "), strings.Join(s.RequestedScopes, " "))
+	}
+
+	if !oauthelia2.Arguments(s.RequestedAudience).Matches(requester.GetRequestedAudience()...) {
+		return oauthelia2.ErrInvalidRequest.WithDebugf("The requested audience '%s' does not match the requested audience '%s' from the consent session.", strings.Join(requester.GetRequestedAudience(), " "), strings.Join(s.RequestedAudience, " "))
+	}
+
+	var form url.Values
+
+	if form, err = s.GetForm(); err != nil {
+		return oauthelia2.ErrServerError.WithDebugf("Error occurred parsing the consent request form. %v", err)
+	}
+
+	if requestURI := form.Get(formParameterRequestURI); len(prefixPAR) != 0 && strings.HasPrefix(requestURI, prefixPAR) {
+		if requestURI != requester.GetRequestForm().Get(formParameterRequestURI) {
+			return oauthelia2.ErrInvalidRequest.WithDebugf("The requested request uri '%s' does not match the requested request uri '%s' from the consent session.", requester.GetRequestForm().Get(formParameterRequestURI), requestURI)
+		}
+
+		return nil
+	}
+
+	if form.Get(formParameterNonce) != requester.GetRequestForm().Get(formParameterNonce) {
+		return oauthelia2.ErrInvalidRequest.WithDebugf("The requested nonce does not match the requested nonce from the consent session.")
+	}
+
+	if form.Get(formParameterState) != requester.GetRequestForm().Get(formParameterState) {
+		return oauthelia2.ErrInvalidRequest.WithDebugf("The requested state does not match the requested state from the consent session.")
+	}
+
+	return nil
 }
 
 // OAuth2BlacklistedJTI represents a blacklisted JTI used with OAuth2.0.
@@ -391,6 +437,7 @@ type OAuth2Session struct {
 	RequestID         string                   `db:"request_id"`
 	ClientID          string                   `db:"client_id"`
 	Signature         string                   `db:"signature"`
+	AccessSignature   string                   `db:"access_signature"`
 	RequestedAt       time.Time                `db:"requested_at"`
 	Subject           sql.NullString           `db:"subject"`
 	RequestedScopes   StringSlicePipeDelimited `db:"requested_scopes"`
@@ -477,18 +524,22 @@ func (s *OAuth2DeviceCodeSession) GetForm() (form url.Values, err error) {
 	return url.ParseQuery(s.Form)
 }
 
+// GetRequestedScopes returns the requested scopes.
 func (s *OAuth2DeviceCodeSession) GetRequestedScopes() []string {
 	return s.RequestedScopes
 }
 
+// GetGrantedScopes returns the granted scopes.
 func (s *OAuth2DeviceCodeSession) GetGrantedScopes() []string {
 	return s.GrantedScopes
 }
 
+// GetRequestedAudience returns the requested audience.
 func (s *OAuth2DeviceCodeSession) GetRequestedAudience() []string {
 	return s.RequestedAudience
 }
 
+// GetGrantedAudience returns the granted audience.
 func (s *OAuth2DeviceCodeSession) GetGrantedAudience() []string {
 	return s.GrantedAudience
 }
@@ -534,8 +585,8 @@ func (s *OAuth2DeviceCodeSession) ToRequest(ctx context.Context, session oauthel
 	return request, nil
 }
 
-// OAuth2PARContext holds relevant information about a Pushed Authorization Request in order to process the authorization.
-type OAuth2PARContext struct {
+// OAuth2PushedAuthorizationSession holds relevant information about a Pushed Authorization Request in order to process the authorization.
+type OAuth2PushedAuthorizationSession struct {
 	ID                   int                      `db:"id"`
 	Signature            string                   `db:"signature"`
 	RequestID            string                   `db:"request_id"`
@@ -551,7 +602,8 @@ type OAuth2PARContext struct {
 	Session              []byte                   `db:"session_data"`
 }
 
-func (par *OAuth2PARContext) ToAuthorizeRequest(ctx context.Context, session oauthelia2.Session, store oauthelia2.Storage) (request *oauthelia2.AuthorizeRequest, err error) {
+// ToAuthorizeRequest returns the *oauthelia2.AuthorizeRequest this session was created from.
+func (par *OAuth2PushedAuthorizationSession) ToAuthorizeRequest(ctx context.Context, session oauthelia2.Session, store oauthelia2.Storage) (request *oauthelia2.AuthorizeRequest, err error) {
 	if session != nil {
 		if err = json.Unmarshal(par.Session, session); err != nil {
 			return nil, fmt.Errorf("error occurred while mapping PAR context back to an Authorize Request while trying to unmarshal the JSON session data: %w", err)

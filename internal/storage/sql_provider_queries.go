@@ -68,12 +68,12 @@ const (
 	queryFmtConsumeIdentityVerification = `
 		UPDATE %s
 		SET consumed = ?, consumed_ip = ?
-		WHERE jti = ?;`
+		WHERE jti = ? AND consumed IS NULL AND consumed_ip IS NULL;`
 
 	queryFmtRevokeIdentityVerification = `
 		UPDATE %s
 		SET revoked = ?, revoked_ip = ?
-		WHERE jti = ?;`
+		WHERE jti = ? AND revoked IS NULL AND revoked_ip IS NULL;`
 )
 
 const (
@@ -112,7 +112,7 @@ const (
 		WHERE public_id = ? AND consumed IS NULL AND revoked IS NULL;`
 
 	queryFmtSelectOTCEncryptedData = `
-		SELECT id, code
+		SELECT id, signature, code
 		FROM %s;`
 
 	queryFmtUpdateOTCEncryptedData = `
@@ -158,7 +158,7 @@ const (
 		WHERE username = ?;`
 
 	queryFmtSelectTOTPConfigurationsEncryptedData = `
-		SELECT id, secret
+		SELECT id, username, secret
 		FROM %s;`
 
 	queryFmtUpdateTOTPConfigurationEncryptedData = `
@@ -210,12 +210,13 @@ const (
 		UPDATE %s
 		SET
 			rpid = ?, last_used_at = ?, attestation_type = ?, sign_count = ?, discoverable = ?, present = ?, verified = ?, backup_eligible = ?, backup_state = ?,
+			public_key = ?, attestation = ?,
 			clone_warning = CASE clone_warning WHEN TRUE THEN TRUE ELSE ? END
 		WHERE id = ?;`
 
 	queryFmtInsertWebAuthnCredential = `
-		INSERT INTO %s (created_at, last_used_at, rpid, username, description, kid, aaguid, attestation_type, attestation_format, attachment, transport, sign_count, clone_warning, discoverable, present, verified, backup_eligible, backup_state, public_key, attestation)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`
+		INSERT INTO %s (created_at, last_used_at, rpid, username, description, kid, aaguid, attestation_type, attestation_format, attachment, transport, sign_count, clone_warning, legacy, discoverable, present, verified, backup_eligible, backup_state, public_key, attestation)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`
 
 	queryFmtDeleteWebAuthnCredential = `
 		DELETE FROM %s
@@ -230,7 +231,7 @@ const (
 		WHERE username = ? AND description = ?;`
 
 	queryFmtSelectWebAuthnCredentialsEncryptedData = `
-		SELECT id, public_key, attestation
+		SELECT id, rpid, kid, public_key, attestation
 		FROM %s;`
 
 	queryFmtUpdateWebAuthnCredentialsEncryptedData = `
@@ -388,7 +389,7 @@ const (
 		WHERE name = ?;`
 
 	queryFmtSelectCachedDataValueEncrypted = `
-		SELECT id, value
+		SELECT id, name, value
 		FROM %s
 		WHERE encrypted = ?;`
 
@@ -404,6 +405,10 @@ const (
         FROM %s
         WHERE name = ?`
 
+	queryFmtInsertEncryptionValue = `
+		INSERT INTO %s (name, value)
+		VALUES (?, ?);`
+
 	queryFmtUpsertEncryptionValue = `
 		REPLACE INTO %s (name, value)
 		VALUES (?, ?);`
@@ -415,7 +420,7 @@ const (
 			DO UPDATE SET value = $2;`
 
 	queryFmtSelectEncryptionEncryptedData = `
-		SELECT id, value
+		SELECT id, name, value
 		FROM %s;`
 
 	queryFmtUpdateEncryptionEncryptedData = `
@@ -451,7 +456,7 @@ const (
 		form_data, requested_scopes, granted_scopes, requested_audience, granted_audience, granted_claims, preconfiguration)
 		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`
 
-	queryFmtUpdateOAuth2ConsentSessionResponse = `
+	queryFmtUpdateOAuth2ConsentSessionResponseByID = `
 		UPDATE %s
 		SET
 			subject = ?,
@@ -463,10 +468,22 @@ const (
 			preconfiguration = ?
 		WHERE id = ? AND responded_at IS NULL;`
 
+	queryFmtUpdateOAuth2ConsentSessionResponseByChallengeID = `
+		UPDATE %s
+		SET
+			subject = ?,
+			responded_at = ?,
+			authorized = ?,
+			granted_scopes = ?,
+			granted_audience = ?,
+			granted_claims = ?,
+			preconfiguration = ?
+		WHERE challenge_id = ? AND responded_at IS NULL;`
+
 	queryFmtUpdateOAuth2ConsentSessionGranted = `
 		UPDATE %s
 		SET granted = TRUE
-		WHERE id = ? AND responded_at IS NOT NULL;`
+		WHERE id = ? AND responded_at IS NOT NULL AND granted = FALSE;`
 
 	queryFmtSelectOAuth2Session = `
 		SELECT id, challenge_id, request_id, client_id, signature, subject, requested_at,
@@ -481,25 +498,37 @@ const (
 		active, revoked, form_data, session_data)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`
 
+	//nolint:gosec // Not a Credential.
+	queryFmtInsertOAuth2RefreshTokenSession = `
+		INSERT INTO %s (challenge_id, request_id, client_id, signature, subject, requested_at,
+		requested_scopes, granted_scopes, requested_audience, granted_audience,
+		active, revoked, form_data, session_data, access_signature)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`
+
+	queryFmtSelectOAuth2RefreshTokenSessionAccessSignature = `
+		SELECT access_signature
+		FROM %s
+		WHERE signature = ?;`
+
 	queryFmtRevokeOAuth2Session = `
 		UPDATE %s
 		SET revoked = TRUE
-		WHERE signature = ?;`
+		WHERE signature = ? AND revoked = FALSE;`
 
 	queryFmtRevokeOAuth2SessionByRequestID = `
 		UPDATE %s
 		SET revoked = TRUE
-		WHERE request_id = ?;`
+		WHERE request_id = ? AND revoked = FALSE;`
 
 	queryFmtDeactivateOAuth2Session = `
 		UPDATE %s
 		SET active = FALSE
-		WHERE signature = ?;`
+		WHERE signature = ? AND active = TRUE;`
 
 	queryFmtDeactivateOAuth2SessionByRequestID = `
 		UPDATE %s
 		SET active = FALSE
-		WHERE request_id = ?;`
+		WHERE request_id = ? AND active = TRUE;`
 
 	queryFmtSelectOAuth2DeviceCodeSession = `
 		SELECT id, challenge_id, request_id, client_id, signature, user_code_signature, status, subject,
@@ -539,7 +568,7 @@ const (
 			revoked = ?,
 			form_data = ?,
 			session_data = ?
-		WHERE signature = ?;`
+		WHERE signature = ? AND revoked = FALSE;`
 
 	queryFmtUpdateOAuth2DeviceCodeSessionData = `
 		UPDATE %s
@@ -592,7 +621,7 @@ const (
 			DO UPDATE SET expires_at = $2;`
 
 	queryFmtSelectOAuth2SessionEncryptedData = `
-		SELECT id, session_data
+		SELECT id, signature, session_data
 		FROM %s;`
 
 	queryFmtUpdateOAuth2ConsentSessionEncryptedData = `

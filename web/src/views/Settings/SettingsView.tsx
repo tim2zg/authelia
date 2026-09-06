@@ -1,31 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
-
-import {
-    CheckCircle as CheckCircleIcon,
-    Delete as DeleteIcon,
-    Laptop as LaptopIcon,
-    Link as LinkIcon,
-    Person as PersonIcon,
-    PhoneAndroid as PhoneAndroidIcon,
-    Security as SecurityIcon,
-    Warning as WarningIcon,
-} from "@mui/icons-material";
-import {
-    Box,
-    Button,
-    Chip,
-    CircularProgress,
-    Divider,
-    Grid,
-    List,
-    ListItem,
-    ListItemIcon,
-    ListItemText,
-    Paper,
-    Typography,
-} from "@mui/material";
 import { useTranslation } from "react-i18next";
+import {
+    AlertTriangle,
+    CheckCircle2,
+    Laptop,
+    Link as LinkIcon,
+    ShieldCheck,
+    Smartphone,
+    Trash2,
+    User,
+} from "lucide-react";
 
+import { Alert, AlertDescription, AlertTitle } from "@components/UI/Alert";
+import { Button } from "@components/UI/Button";
+import { Card, CardContent } from "@components/UI/Card";
+import { Separator } from "@components/UI/Separator";
+import { Spinner } from "@components/UI/Spinner";
 import { useAutheliaState } from "@hooks/State";
 import { ActiveSession, getActiveSessions, revokeActiveSession } from "@services/ActiveSessions";
 import { AuthenticationLevel } from "@services/State";
@@ -96,36 +86,34 @@ const SettingsView = function () {
 
     if (loading) {
         return (
-            <Paper variant={"outlined"}>
-                <Box sx={{ alignItems: "center", display: "flex", justifyContent: "center", p: 6 }}>
-                    <CircularProgress />
-                </Box>
-            </Paper>
+            <Card>
+                <CardContent className="flex items-center justify-center p-6 min-h-[200px]">
+                    <Spinner size={32} />
+                </CardContent>
+            </Card>
         );
     }
 
     if (fetchStateError) {
         return (
-            <Paper variant={"outlined"}>
-                <Box sx={{ p: 3, textAlign: "center" }}>
-                    <Typography color="error" variant="h6">
-                        {translate("Failed to load session details")}
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary" mt={1}>
-                        {fetchStateError.message}
-                    </Typography>
-                </Box>
-            </Paper>
+            <Card>
+                <CardContent className="p-6">
+                    <Alert variant="destructive">
+                        <AlertTitle>{translate("Failed to load session details")}</AlertTitle>
+                        <AlertDescription>{fetchStateError.message}</AlertDescription>
+                    </Alert>
+                </CardContent>
+            </Card>
         );
     }
 
     if (!state) {
         return (
-            <Paper variant={"outlined"}>
-                <Box sx={{ p: 3, textAlign: "center" }}>
-                    <Typography>{translate("No active session found")}</Typography>
-                </Box>
-            </Paper>
+            <Card>
+                <CardContent className="p-6 text-center">
+                    <p className="text-muted-foreground">{translate("No active session found")}</p>
+                </CardContent>
+            </Card>
         );
     }
 
@@ -137,135 +125,123 @@ const SettingsView = function () {
               : translate("Unauthenticated");
 
     return (
-        <Paper variant={"outlined"}>
-            <Box sx={{ p: 4 }}>
-                <Typography variant={"h4"} textAlign={"center"} mb={2}>
-                    {translate("Sitzungsdetails")}
-                </Typography>
-                <Typography variant={"body1"} textAlign={"center"} color="textSecondary" mb={4}>
-                    {translate(
-                        "Willkommen zurück, {{username}}! Hier sind die Details Ihrer aktuellen Authelia-Sitzung.",
-                        { username: state.username },
-                    )}
-                </Typography>
+        <Card>
+            <CardContent className="p-6 space-y-6">
+                <div className="text-center space-y-2">
+                    <h4 className="text-2xl font-semibold tracking-tight">{translate("Sitzungsdetails")}</h4>
+                    <p className="text-sm text-muted-foreground">
+                        {translate(
+                            "Willkommen zurück, {{username}}! Hier sind die Details Ihrer aktuellen Authelia-Sitzung.",
+                            { username: state.username },
+                        )}
+                    </p>
+                </div>
 
-                <Divider sx={{ my: 3 }} />
+                <Separator />
 
-                <Grid container spacing={3}>
-                    <Grid size={{ md: 6, xs: 12 }}>
-                        <List>
-                            <ListItem>
-                                <ListItemIcon>
-                                    <PersonIcon color="primary" />
-                                </ListItemIcon>
-                                <ListItemText primary={translate("Benutzername")} secondary={state.username} />
-                            </ListItem>
-                            <ListItem>
-                                <ListItemIcon>
-                                    <SecurityIcon color="primary" />
-                                </ListItemIcon>
-                                <ListItemText
-                                    primary={translate("Sicherheitsstufe")}
-                                    secondary={
-                                        <Box display="flex" alignItems="center" mt={0.5}>
-                                            <Typography variant="body2" sx={{ mr: 1 }}>
-                                                {authLevelString}
-                                            </Typography>
-                                            {state.authentication_level === AuthenticationLevel.TwoFactor ? (
-                                                <Chip
-                                                    size="small"
-                                                    label={translate("Gesichert")}
-                                                    color="success"
-                                                    icon={<CheckCircleIcon />}
-                                                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-start gap-3 p-3 rounded-lg border bg-muted/20">
+                        <User className="size-5 text-primary mt-0.5" />
+                        <div>
+                            <p className="text-xs font-medium text-muted-foreground">{translate("Benutzername")}</p>
+                            <p className="text-sm font-semibold">{state.username}</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 p-3 rounded-lg border bg-muted/20">
+                        <ShieldCheck className="size-5 text-primary mt-0.5" />
+                        <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground">{translate("Sicherheitsstufe")}</p>
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold">{authLevelString}</span>
+                                {state.authentication_level === AuthenticationLevel.TwoFactor ? (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600 dark:text-green-400">
+                                        <CheckCircle2 className="size-3" />
+                                        {translate("Gesichert")}
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                                        <AlertTriangle className="size-3" />
+                                        {translate("1FA Aktiv")}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 p-3 rounded-lg border bg-muted/20 md:col-span-2">
+                        <LinkIcon className="size-5 text-primary mt-0.5" />
+                        <div>
+                            <p className="text-xs font-medium text-muted-foreground">{translate("Standardweiterleitung")}</p>
+                            <p className="text-sm font-medium">{state.default_redirection_url || translate("Keine konfiguriert")}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-4">
+                    <h5 className="text-lg font-semibold tracking-tight">
+                        {translate("Aktive Sitzungen ({{count}})", { count: sessions.length })}
+                    </h5>
+
+                    {sessionsLoading && sessions.length === 0 ? (
+                        <div className="flex justify-center py-6">
+                            <Spinner size={24} />
+                        </div>
+                    ) : sessionsError ? (
+                        <p className="text-sm text-destructive">
+                            {translate("Fehler beim Laden der aktiven Sitzungen")}
+                        </p>
+                    ) : (
+                        <div className="divide-y rounded-lg border">
+                            {sessions.map((session) => {
+                                const { browser, os } = parseUserAgent(session.user_agent);
+                                const isMobile = os === "Android" || os === "iOS";
+                                const formattedDate = new Date(session.last_activity).toLocaleString();
+
+                                return (
+                                    <div
+                                        key={session.id}
+                                        className="flex items-center justify-between gap-4 p-4 hover:bg-muted/10 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted/40 text-muted-foreground">
+                                                {isMobile ? <Smartphone className="size-5" /> : <Laptop className="size-5" />}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-medium truncate">{`${browser} on ${os}`}</p>
+                                                <p className="text-xs text-muted-foreground truncate">
+                                                    {`${session.ip_address} • Letzte Aktivität: ${formattedDate}`}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            {session.current ? (
+                                                <span className="inline-flex items-center rounded-full border border-green-600/30 bg-green-500/10 px-2.5 py-0.5 text-xs font-medium text-green-600 dark:text-green-400">
+                                                    {translate("Diese Sitzung")}
+                                                </span>
                                             ) : (
-                                                <Chip
-                                                    size="small"
-                                                    label={translate("1FA Aktiv")}
-                                                    color="warning"
-                                                    icon={<WarningIcon />}
-                                                />
+                                                <Button
+                                                    color="destructive"
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => handleRevoke(session.id)}
+                                                >
+                                                    <Trash2 className="size-4" />
+                                                    <span>{translate("Beenden")}</span>
+                                                </Button>
                                             )}
-                                        </Box>
-                                    }
-                                />
-                            </ListItem>
-                        </List>
-                    </Grid>
-
-                    <Grid size={{ md: 6, xs: 12 }}>
-                        <List>
-                            <ListItem>
-                                <ListItemIcon>
-                                    <LinkIcon color="primary" />
-                                </ListItemIcon>
-                                <ListItemText
-                                    primary={translate("Standardweiterleitung")}
-                                    secondary={state.default_redirection_url || translate("Keine konfiguriert")}
-                                />
-                            </ListItem>
-                        </List>
-                    </Grid>
-                </Grid>
-
-                <Divider sx={{ my: 4 }} />
-
-                <Typography variant={"h5"} mb={3}>
-                    {translate("Aktive Sitzungen ({{count}})", { count: sessions.length })}
-                </Typography>
-
-                {sessionsLoading && sessions.length === 0 ? (
-                    <Box display="flex" justifyContent="center" py={3}>
-                        <CircularProgress size={24} />
-                    </Box>
-                ) : sessionsError ? (
-                    <Typography color="error" variant="body2">
-                        {translate("Fehler beim Laden der aktiven Sitzungen")}
-                    </Typography>
-                ) : (
-                    <List>
-                        {sessions.map((session) => {
-                            const { browser, os } = parseUserAgent(session.user_agent);
-                            const isMobile = os === "Android" || os === "iOS";
-                            const formattedDate = new Date(session.last_activity).toLocaleString();
-
-                            return (
-                                <ListItem
-                                    key={session.id}
-                                    secondaryAction={
-                                        session.current ? (
-                                            <Chip
-                                                size="small"
-                                                label={translate("Diese Sitzung")}
-                                                color="success"
-                                                variant="outlined"
-                                            />
-                                        ) : (
-                                            <Button
-                                                size="small"
-                                                color="error"
-                                                startIcon={<DeleteIcon />}
-                                                onClick={() => handleRevoke(session.id)}
-                                            >
-                                                {translate("Beenden")}
-                                            </Button>
-                                        )
-                                    }
-                                >
-                                    <ListItemIcon>
-                                        {isMobile ? <PhoneAndroidIcon color="action" /> : <LaptopIcon color="action" />}
-                                    </ListItemIcon>
-                                    <ListItemText
-                                        primary={`${browser} on ${os}`}
-                                        secondary={`${session.ip_address} • Letzte Aktivität: ${formattedDate}`}
-                                    />
-                                </ListItem>
-                            );
-                        })}
-                    </List>
-                )}
-            </Box>
-        </Paper>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
     );
 };
 

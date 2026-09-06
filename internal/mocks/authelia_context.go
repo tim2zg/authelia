@@ -51,7 +51,13 @@ func NewMockAutheliaCtx(t *testing.T) *MockAutheliaCtx {
 	datetime, _ := time.Parse("2006-Jan-02", "2013-Feb-03")
 	mockAuthelia.Clock.Set(datetime)
 
-	config := schema.Configuration{}
+	config := schema.Configuration{
+		IdentityValidation: schema.IdentityValidation{
+			ResetPassword: schema.IdentityValidationResetPassword{
+				JWTAlgorithm: "HS256",
+			},
+		},
+	}
 
 	config.Session.Cookies = []schema.SessionCookie{
 		{
@@ -195,6 +201,10 @@ func NewMockAutheliaCtx(t *testing.T) *MockAutheliaCtx {
 	providers.UserProvider = mockAuthelia.UserProviderMock
 
 	mockAuthelia.StorageMock = NewMockStorage(mockAuthelia.Ctrl)
+	mockAuthelia.StorageMock.EXPECT().SaveActiveSession(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	mockAuthelia.StorageMock.EXPECT().LoadActiveSessionByID(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	mockAuthelia.StorageMock.EXPECT().RevokeActiveSessionByID(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	mockAuthelia.StorageMock.EXPECT().UpdateActiveSessionLastActivity(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	providers.StorageProvider = mockAuthelia.StorageMock
 
 	mockAuthelia.NotifierMock = NewMockNotifier(mockAuthelia.Ctrl)

@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+const shortTimeoutsCookieExpiration = 10 * time.Second
+
 type InactivityScenario struct {
 	*RodSuite
 }
@@ -53,8 +55,7 @@ func (s *InactivityScenario) TearDownSuite() {
 }
 
 func (s *InactivityScenario) SetupTest() {
-	s.Page = s.doCreateTab(s.T(), HomeBaseURL)
-	s.verifyIsHome(s.T(), s.Page)
+	s.doSetupTest(HomeBaseURL)
 }
 
 func (s *InactivityScenario) TearDownTest() {
@@ -94,6 +95,8 @@ func (s *InactivityScenario) TestShouldRequireReauthenticationAfterCookieExpirat
 
 	s.doLoginSecondFactorTOTP(s.T(), s.Context(ctx), "john", "password", false, "")
 
+	loggedInAt := time.Now()
+
 	for i := 0; i < 3; i++ {
 		s.doVisit(s.T(), s.Context(ctx), HomeBaseURL)
 		s.verifyIsHome(s.T(), s.Context(ctx))
@@ -104,7 +107,9 @@ func (s *InactivityScenario) TestShouldRequireReauthenticationAfterCookieExpirat
 		s.verifySecretAuthorized(s.T(), s.Context(ctx))
 	}
 
-	time.Sleep(2 * time.Second)
+	if remaining := shortTimeoutsCookieExpiration + time.Second - time.Since(loggedInAt); remaining > 0 {
+		time.Sleep(remaining)
+	}
 
 	require.NoError(s.T(), s.Context(ctx).Reload())
 	s.verifyIsFirstFactorPage(s.T(), s.Context(ctx))

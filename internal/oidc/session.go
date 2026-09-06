@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"maps"
 	"net/url"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 	"github.com/authelia/authelia/v4/internal/model"
 )
 
-// NewSession creates a new empty OpenIDSession struct with the requested at value being time.Now().
+// NewSession creates a new empty OpenIDSession struct with the requested at value being [time.Now]().
 func NewSession() (session *Session) {
 	return NewSessionWithRequestedAt(time.Now())
 }
@@ -26,6 +27,15 @@ func NewSessionWithRequestedAt(requestedAt time.Time) (session *Session) {
 	InitializeSessionDefaults(session)
 
 	session.SetRequestedAt(requestedAt.UTC())
+
+	return session
+}
+
+// NewSessionWithIssuerAndRequestedAt returns a new *Session with the given issuer and requested at time.
+func NewSessionWithIssuerAndRequestedAt(ctx Context, issuer *url.URL, requestedAt time.Time) (session *Session) {
+	session = NewSessionWithRequestedAt(requestedAt)
+
+	session.SetValuesGeneral(ctx, issuer, "", "", nil, time.Time{}, nil, nil)
 
 	return session
 }
@@ -42,6 +52,7 @@ func NewSessionWithRequester(ctx Context, issuer *url.URL, kid, username string,
 	return session
 }
 
+// AccessTokenSession represents the headers and claims of an Access Token.
 type AccessTokenSession struct {
 	Headers map[string]any `json:"-"`
 	Claims  map[string]any `json:"-"`
@@ -61,6 +72,23 @@ type Session struct {
 	ClaimRequests         *ClaimsRequests `json:"claim_requests,omitempty"`
 	GrantedClaims         []string        `json:"granted_claims,omitempty"`
 	Extra                 map[string]any  `json:"extra"`
+}
+
+// GetSubject returns the subject, if set. This is optional and only used during token introspection.
+func (s *Session) GetSubject() string {
+	if s == nil {
+		return ""
+	}
+
+	if subject := s.DefaultSession.GetSubject(); subject != "" {
+		return subject
+	}
+
+	if s.ClientCredentials && s.ClientID != "" {
+		return s.ClientID
+	}
+
+	return ""
 }
 
 // ValidIssuer returns true if the issuer is valid for this session, false otherwise.
@@ -113,7 +141,7 @@ func (s *Session) GetJWTClaims() jwt.JWTClaimsContainer {
 	}
 
 	claims := &jwt.JWTClaims{
-		Subject:   s.Subject,
+		Subject:   s.GetSubject(),
 		ExpiresAt: s.GetExpiresAt(oauthelia2.AccessToken),
 		IssuedAt:  time.Now().UTC(),
 		Extra:     map[string]any{},
@@ -146,12 +174,14 @@ func (s *Session) GetJWTClaims() jwt.JWTClaimsContainer {
 	return claims
 }
 
+// SetValuesFromRequester sets the session values from the given requester.
 func (s *Session) SetValuesFromRequester(requester oauthelia2.Requester) {
 	s.ClientID = requester.GetClient().GetID()
 	s.Claims.AuthorizedParty = requester.GetClient().GetID()
 	s.Claims.Nonce = requester.GetRequestForm().Get(FormParameterNonce)
 }
 
+// SetValuesFromConsentSession sets the session values from the given consent session.
 func (s *Session) SetValuesFromConsentSession(consent *model.OAuth2ConsentSession) {
 	s.SetRequestedAt(consent.RequestedAt)
 
@@ -161,6 +191,7 @@ func (s *Session) SetValuesFromConsentSession(consent *model.OAuth2ConsentSessio
 	s.Claims.Subject = consent.Subject.UUID.String()
 }
 
+// SetValuesGeneral sets the general session values.
 func (s *Session) SetValuesGeneral(ctx Context, issuer *url.URL, kid string, username string, amr []string, authTime time.Time, claims *ClaimsRequests, extra map[string]any) {
 	if issuer != nil {
 		s.Claims.Issuer = issuer.String()
@@ -208,12 +239,18 @@ func (s *Session) GetIDTokenClaims() (claims *jwt.IDTokenClaims) {
 }
 
 // GetExtraClaims returns the Extra/Unregistered claims for this session.
-func (s *Session) GetExtraClaims() map[string]any {
-	if s.AccessToken == nil {
-		return nil
+func (s *Session) GetExtraClaims() (claims map[string]any) {
+	if s.AccessToken != nil {
+		claims = maps.Clone(s.AccessToken.Claims)
+	} else {
+		claims = map[string]any{}
 	}
 
-	return s.AccessToken.Claims
+	if _, ok := claims[ClaimIssuer]; !ok && s.DefaultSession != nil && s.Claims != nil && s.Claims.Issuer != "" {
+		claims[ClaimIssuer] = s.Claims.Issuer
+	}
+
+	return claims
 }
 
 // Clone copies the OpenIDSession to a new oauthelia2.Session.

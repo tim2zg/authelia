@@ -33,9 +33,9 @@ specific to Kubernetes.
 
 ## Get started
 
-It's __*strongly recommended*__ that users setting up *Authelia* for the first time take a look at our
+It's **_strongly recommended_** that users setting up _Authelia_ for the first time take a look at our
 [Get started](../../prologue/get-started.md) guide. This takes you through various steps which are essential to
-bootstrapping *Authelia*.
+bootstrapping _Authelia_.
 
 ## Variables
 
@@ -137,7 +137,7 @@ spec:
 The following [HTTPRoute] has the above [SecurityPolicy] applied to it for the
 `app.{{< sitevar name="domain" nojs="example.com" >}}` domain:
 
-```yaml {title="authoriztion-policy.yml"}
+```yaml {title="authorization-policy.yml"}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

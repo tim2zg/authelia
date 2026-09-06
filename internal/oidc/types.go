@@ -6,9 +6,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/go-jose/go-jose/v4"
-
 	oauthelia2 "authelia.com/provider/oauth2"
+	"authelia.com/provider/oauth2/token/jose"
 	fjwt "authelia.com/provider/oauth2/token/jwt"
 
 	"github.com/authelia/authelia/v4/internal/authentication"
@@ -129,6 +128,7 @@ type RegisteredClient struct {
 	RefreshFlowIgnoreOriginalGrantedScopes  bool
 	AllowMultipleAuthenticationMethods      bool
 	ClientCredentialsFlowAllowImplicitScope bool
+	DPoPBoundAccessTokens                   bool
 
 	AuthorizationPolicy ClientAuthorizationPolicy
 
@@ -229,6 +229,7 @@ type ClaimsStrategyContext interface {
 	context.Context
 }
 
+// ClientContext is a context which provides the [http.Client] used for outbound requests.
 type ClientContext interface {
 	GetHTTPClient() *http.Client
 
@@ -270,6 +271,7 @@ type IDTokenSessionContainer interface {
 	IDTokenClaims() *fjwt.IDTokenClaims
 }
 
+// UserDetailer is an interface which provides the user details used to hydrate claims.
 type UserDetailer interface {
 	GetUsername() (username string)
 	GetGroups() (groups []string)
@@ -540,6 +542,7 @@ type OAuth2DiscoveryOptions struct {
 	CodeChallengeMethodsSupported []string `json:"code_challenge_methods_supported,omitempty"`
 }
 
+// OAuth2JWTIntrospectionResponseDiscoveryOptions represents the discovery options specific to JWT Response for OAuth Token Introspection.
 type OAuth2JWTIntrospectionResponseDiscoveryOptions struct {
 	/*
 		OPTIONAL.  JSON array containing a list of the JWS [RFC7515] signing algorithms ("alg" values) as defined in JWA
@@ -561,6 +564,7 @@ type OAuth2JWTIntrospectionResponseDiscoveryOptions struct {
 	IntrospectionEncryptionEncValuesSupported []string `json:"introspection_encryption_enc_values_supported,omitempty"`
 }
 
+// OAuth2DeviceAuthorizationGrantDiscoveryOptions represents the discovery options specific to the OAuth 2.0 Device Authorization Grant.
 type OAuth2DeviceAuthorizationGrantDiscoveryOptions struct {
 	/*
 		OPTIONAL.  URL of the authorization server's device authorization endpoint, as defined in Section 3.1.
@@ -568,6 +572,7 @@ type OAuth2DeviceAuthorizationGrantDiscoveryOptions struct {
 	DeviceAuthorizationEndpoint string `json:"device_authorization_endpoint"`
 }
 
+// OAuth2MutualTLSClientAuthenticationDiscoveryOptions represents the discovery options specific to OAuth 2.0 Mutual-TLS Client Authentication and Certificate-Bound Access Tokens.
 type OAuth2MutualTLSClientAuthenticationDiscoveryOptions struct {
 	/*
 		OPTIONAL. Boolean value indicating server support for mutual-TLS client certificate-bound access tokens. If
@@ -591,6 +596,7 @@ type OAuth2MutualTLSClientAuthenticationDiscoveryOptions struct {
 	MutualTLSEndpointAliases OAuth2MutualTLSClientAuthenticationAliasesDiscoveryOptions `json:"mtls_endpoint_aliases"`
 }
 
+// OAuth2MutualTLSClientAuthenticationAliasesDiscoveryOptions represents the endpoint aliases specific to OAuth 2.0 Mutual-TLS Client Authentication and Certificate-Bound Access Tokens.
 type OAuth2MutualTLSClientAuthenticationAliasesDiscoveryOptions struct {
 	AuthorizationEndpoint              string `json:"authorization_endpoint,omitempty"`
 	TokenEndpoint                      string `json:"token_endpoint,omitempty"`
@@ -604,6 +610,7 @@ type OAuth2MutualTLSClientAuthenticationAliasesDiscoveryOptions struct {
 	RegistrationEndpoint               string `json:"registration_endpoint,omitempty"`
 }
 
+// OAuth2JWTSecuredAuthorizationRequestDiscoveryOptions represents the discovery options specific to JWT-Secured Authorization Request.
 type OAuth2JWTSecuredAuthorizationRequestDiscoveryOptions struct {
 	/*
 		Indicates where authorization request needs to be protected as Request Object and provided through either
@@ -612,6 +619,7 @@ type OAuth2JWTSecuredAuthorizationRequestDiscoveryOptions struct {
 	RequireSignedRequestObject bool `json:"require_signed_request_object"`
 }
 
+// OAuth2IssuerIdentificationDiscoveryOptions represents the discovery options specific to OAuth 2.0 Authorization Server Issuer Identification.
 type OAuth2IssuerIdentificationDiscoveryOptions struct {
 	AuthorizationResponseIssuerParameterSupported bool `json:"authorization_response_iss_parameter_supported"`
 }
@@ -957,6 +965,7 @@ type OpenIDConnectJWTSecuredAuthorizationResponseModeDiscoveryOptions struct {
 	AuthorizationEncryptionEncValuesSupported []string `json:"authorization_encryption_enc_values_supported,omitempty"`
 }
 
+// OpenIDFederationDiscoveryOptions represents the discovery options specific to OpenID Federation 1.0.
 type OpenIDFederationDiscoveryOptions struct {
 	/*
 		OPTIONAL. URL of the OP's federation-specific Dynamic Client Registration Endpoint. If the OP supports explicit
@@ -996,6 +1005,7 @@ type OpenIDFederationDiscoveryOptions struct {
 	RequestAuthenticationSigningAlgValuesSupported []string `json:"request_authentication_signing_alg_values_supported,omitempty"`
 }
 
+// OpenIDConnectIdentityAssurance represents the discovery options specific to OpenID Connect for Identity Assurance 1.0.
 type OpenIDConnectIdentityAssurance struct {
 	/*
 		Required. JSON array containing all supported trust frameworks. This array shall have at least one member.
@@ -1052,6 +1062,7 @@ type OAuth2WellKnownConfiguration struct {
 	*OAuth2PushedAuthorizationDiscoveryOptions
 }
 
+// OAuth2WellKnownSignedConfiguration represents the signed well known discovery document specific to OAuth 2.0.
 type OAuth2WellKnownSignedConfiguration struct {
 	OAuth2WellKnownConfiguration
 
@@ -1062,6 +1073,7 @@ type OAuth2WellKnownSignedConfiguration struct {
 	SignedMetadata string `json:"signed_metadata,omitempty"`
 }
 
+// ToMap returns this configuration as JWT claims.
 func (claims *OAuth2WellKnownSignedConfiguration) ToMap() (result fjwt.MapClaims) {
 	return fjwt.NewMapClaims(claims)
 }
@@ -1082,6 +1094,7 @@ type OpenIDConnectWellKnownConfiguration struct {
 	*OpenIDConnectIdentityAssurance
 }
 
+// OpenIDConnectWellKnownSignedConfiguration represents the signed well known discovery document specific to OpenID Connect.
 type OpenIDConnectWellKnownSignedConfiguration struct {
 	OpenIDConnectWellKnownConfiguration
 
@@ -1092,14 +1105,17 @@ type OpenIDConnectWellKnownSignedConfiguration struct {
 	SignedMetadata string `json:"signed_metadata,omitempty"`
 }
 
+// ToMap returns this configuration as JWT claims.
 func (claims *OpenIDConnectWellKnownSignedConfiguration) ToMap() (result fjwt.MapClaims) {
 	return fjwt.NewMapClaims(claims)
 }
 
+// FormSession is a session which retains the original request form.
 type FormSession interface {
 	GetForm() (form url.Values, err error)
 }
 
+// RequesterFormSession is a FormSession which also retains the requested time and client id.
 type RequesterFormSession interface {
 	FormSession
 
@@ -1112,6 +1128,7 @@ type RequesterFormSession interface {
 	GetGrantedAudience() []string
 }
 
+// Number is a constraint which permits any integer or floating point type.
 type Number interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~float32 | ~float64
 }

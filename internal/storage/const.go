@@ -37,6 +37,17 @@ const (
 )
 
 const (
+	tableAADPushedAuthorizationRequestSession = "oauth2_pushed_authorization_session"
+)
+
+const (
+	columnSessionData = "session_data"
+	columnValue       = "value"
+	columnCode        = "code"
+	columnSecret      = "secret"
+)
+
+const (
 	encryptionNameCheck = "check"
 )
 
@@ -76,6 +87,18 @@ const (
 )
 
 const (
+	dsnFmtSQLite = "%s?_txlock=immediate"
+)
+
+const (
+	codeMySQLLockWaitTimeout uint16 = 1205
+	codeMySQLLockDeadlock    uint16 = 1213
+
+	codePostgresSerializationFailure = "40001"
+	codePostgresDeadlockDetected     = "40P01"
+)
+
+const (
 	// SchemaLatest represents the value expected for a "migrate to latest" migration. It's the maximum 32bit signed integer.
 	SchemaLatest = 2147483647
 )
@@ -90,6 +113,18 @@ const (
 const (
 	hmacNameOneTimeCode     = "otc"
 	hmacNameOneTimePassword = "otp"
+)
+
+const (
+	hkdfKeyInfo = "authelia:kdf:storage:encryption_key:v1"
+
+	// schemaVersionEncryptionKeyDerivation is the schema version at which HKDF key derivation and GCM AAD were
+	// introduced. Databases below this version store encrypted values using the legacy SHA256 key without AAD.
+	schemaVersionEncryptionKeyDerivation = 25
+
+	// schemaVersionEncryptionAADRowScoped is the schema version at which encrypted values became bound to their
+	// individual row. Databases below this version bind values to their table and column only.
+	schemaVersionEncryptionAADRowScoped = 26
 )
 
 var (
