@@ -10,8 +10,10 @@ import (
 	"github.com/valyala/fasthttp"
 	"go.uber.org/mock/gomock"
 
+	"github.com/authelia/authelia/v4/internal/configuration/schema"
 	"github.com/authelia/authelia/v4/internal/mocks"
 	"github.com/authelia/authelia/v4/internal/model"
+	"github.com/authelia/authelia/v4/internal/session"
 	"github.com/authelia/authelia/v4/internal/utils"
 )
 
@@ -183,6 +185,31 @@ func (s *HandlerActiveSessionsSuite) TestShouldRevokeActiveSession() {
 	s.Assert().Equal(fasthttp.StatusOK, s.mock.Ctx.Response.StatusCode())
 }
 
+func (s *HandlerActiveSessionsSuite) TestShouldInvalidateAuthnCookieWhenSessionRevokedInDB() {
+	s.setAuthenticatedSession("john")
+
+	provider, err := s.mock.Ctx.GetSessionProvider()
+	s.Require().NoError(err)
+	currID, err := provider.GetSessionID(s.mock.Ctx.RequestCtx)
+	s.Require().NoError(err)
+	currHash := utils.HashSHA256FromString(currID)
+
+	s.mock.StorageMock = mocks.NewMockStorage(s.mock.Ctrl)
+	s.mock.Ctx.Providers.StorageProvider = s.mock.StorageMock
+
+	s.mock.StorageMock.EXPECT().
+		LoadActiveSessionByID(gomock.Any(), currHash).
+		Return(&model.ActiveSession{ID: currHash, Username: "john", Revoked: true}, nil)
+
+	manager := session.NewEncapsulatedSession(provider, s.mock.Ctx.RequestCtx)
+	userSession, err := manager.GetSession()
+	s.Require().NoError(err)
+
+	_, invalid := handleAuthnCookieValidate(s.mock.Ctx, manager, &userSession, schema.NewRefreshIntervalDurationNever())
+	s.Assert().True(invalid, "Expected session to be marked invalid when revoked in database")
+}
+
 func TestHandlerActiveSessionsSuite(t *testing.T) {
 	suite.Run(t, new(HandlerActiveSessionsSuite))
 }
+

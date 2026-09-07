@@ -478,6 +478,25 @@ func handleAuthnCookieValidate(ctx AuthzContext, manager session.Manager, userSe
 		return modified, true
 	}
 
+	if !isAnonymous {
+		if sessionID, errID := manager.GetSessionID(); errID == nil && sessionID != "" {
+			sessionHash := utils.HashSHA256FromString(sessionID)
+			storageProvider := ctx.GetProviderStorage()
+			if storageProvider != nil {
+				dbSession, errStore := storageProvider.LoadActiveSessionByID(ctx, sessionHash)
+				if errStore == nil && dbSession != nil {
+					if dbSession.Revoked {
+						ctx.GetLogger().WithField("username", userSession.Username).Info("Session for user has been revoked in database")
+						return modified, true
+					}
+					if time.Since(dbSession.LastActivity) > time.Minute {
+						_ = storageProvider.UpdateActiveSessionLastActivity(ctx, sessionHash, time.Now())
+					}
+				}
+			}
+		}
+	}
+
 	if invalid = handleAuthnCookieValidateInactivity(ctx, manager, userSession, isAnonymous); invalid {
 		ctx.GetLogger().WithField("username", userSession.Username).Info("Session for user not marked as remembered has exceeded configured session inactivity")
 

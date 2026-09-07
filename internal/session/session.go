@@ -169,6 +169,11 @@ func (p *EncapsulatedSession) GetSessionExpiration() (expiration time.Duration, 
 	return p.base.GetExpiration(p.ctx)
 }
 
+// GetSessionID gets the session ID for this encapsulated session.
+func (p *EncapsulatedSession) GetSessionID() (string, error) {
+	return p.base.GetSessionID(p.ctx)
+}
+
 // GetSessionConfig returns the session configuration.
 func (p *EncapsulatedSession) GetSessionConfig() (config schema.SessionCookie) {
 	return p.base.Config
@@ -178,6 +183,7 @@ func (p *EncapsulatedSession) GetSessionConfig() (config schema.SessionCookie) {
 type Manager interface {
 	NewDefaultUserSession() (userSession UserSession)
 	GetSession() (userSession UserSession, err error)
+	GetSessionID() (sessionID string, err error)
 	SaveSession(userSession UserSession) (err error)
 	RegenerateSession() (err error)
 	DestroySession() (err error)
@@ -185,3 +191,4 @@ type Manager interface {
 	GetSessionExpiration() (expiration time.Duration, err error)
 	GetSessionConfig() (config schema.SessionCookie)
 }
+
