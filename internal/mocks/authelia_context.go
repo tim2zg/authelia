@@ -202,6 +202,7 @@ func NewMockAutheliaCtx(t *testing.T) *MockAutheliaCtx {
 
 	mockAuthelia.StorageMock = NewMockStorage(mockAuthelia.Ctrl)
 	mockAuthelia.StorageMock.EXPECT().SaveActiveSession(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	mockAuthelia.StorageMock.EXPECT().LoadActiveSessionsByUsername(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	mockAuthelia.StorageMock.EXPECT().LoadActiveSessionByID(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	mockAuthelia.StorageMock.EXPECT().RevokeActiveSessionByID(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockAuthelia.StorageMock.EXPECT().UpdateActiveSessionLastActivity(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()

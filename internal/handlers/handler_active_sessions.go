@@ -59,16 +59,76 @@ func ActiveSessionsGET(ctx *middlewares.AutheliaCtx) {
 		currentSessionHash = utils.HashSHA256FromString(currentSessionID)
 	}
 
+	inactivityTimeout := provider.Config.Inactivity
+	expirationTimeout := provider.Config.Expiration
+	if provider.Config.RememberMe > expirationTimeout {
+		expirationTimeout = provider.Config.RememberMe
+	}
+
 	response := make([]ActiveSessionResponse, 0, len(dbSessions))
+	seenDevices := make(map[string]bool)
+
+	// First find current session if present and add it to top of response
 	for _, dbSess := range dbSessions {
-		isCurrent := currentSessionHash != "" && dbSess.ID == currentSessionHash
+		if dbSess.Revoked {
+			continue
+		}
+		if inactivityTimeout > 0 && time.Since(dbSess.LastActivity) > inactivityTimeout {
+			_ = ctx.Providers.StorageProvider.RevokeActiveSessionByID(ctx, dbSess.ID)
+			continue
+		}
+		if expirationTimeout > 0 && time.Since(dbSess.CreatedAt) > expirationTimeout {
+			_ = ctx.Providers.StorageProvider.RevokeActiveSessionByID(ctx, dbSess.ID)
+			continue
+		}
+
+		if currentSessionHash != "" && dbSess.ID == currentSessionHash {
+			deviceKey := dbSess.IPAddress + "|" + dbSess.UserAgent
+			seenDevices[deviceKey] = true
+			response = append(response, ActiveSessionResponse{
+				ID:           dbSess.ID,
+				IPAddress:    dbSess.IPAddress,
+				UserAgent:    dbSess.UserAgent,
+				CreatedAt:    dbSess.CreatedAt,
+				LastActivity: dbSess.LastActivity,
+				Current:      true,
+			})
+			break
+		}
+	}
+
+	// Now append other active sessions, skipping duplicates from the same device or revoked/expired
+	for _, dbSess := range dbSessions {
+		if dbSess.Revoked {
+			continue
+		}
+		if currentSessionHash != "" && dbSess.ID == currentSessionHash {
+			continue // Already added as current session
+		}
+		if inactivityTimeout > 0 && time.Since(dbSess.LastActivity) > inactivityTimeout {
+			_ = ctx.Providers.StorageProvider.RevokeActiveSessionByID(ctx, dbSess.ID)
+			continue
+		}
+		if expirationTimeout > 0 && time.Since(dbSess.CreatedAt) > expirationTimeout {
+			_ = ctx.Providers.StorageProvider.RevokeActiveSessionByID(ctx, dbSess.ID)
+			continue
+		}
+
+		deviceKey := dbSess.IPAddress + "|" + dbSess.UserAgent
+		if seenDevices[deviceKey] {
+			// Older superseded session from the same device
+			_ = ctx.Providers.StorageProvider.RevokeActiveSessionByID(ctx, dbSess.ID)
+			continue
+		}
+		seenDevices[deviceKey] = true
+
 		response = append(response, ActiveSessionResponse{
 			ID:           dbSess.ID,
 			IPAddress:    dbSess.IPAddress,
 			UserAgent:    dbSess.UserAgent,
 			CreatedAt:    dbSess.CreatedAt,
 			LastActivity: dbSess.LastActivity,
-			Current:      isCurrent,
+			Current:      false,
 		})
 	}
 

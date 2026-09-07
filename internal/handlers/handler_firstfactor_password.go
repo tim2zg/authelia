@@ -112,7 +112,7 @@ func FirstFactorPasswordPOST(delayer middlewares.Delayer) middlewares.RequestHan
 			return
 		}
 
-		if err = provider.RegenerateSession(ctx.RequestCtx); err != nil {
+		if err = ctx.RegenerateSession(); err != nil {
 			ctx.Logger.WithError(err).Errorf(logFmtErrSessionRegenerate, regulation.AuthType1FA, details.Username)
 
 			respondUnauthorized(ctx, messageAuthenticationFailed)

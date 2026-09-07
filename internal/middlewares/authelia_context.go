@@ -416,6 +416,13 @@ func (ctx *AutheliaCtx) GetSession() (userSession session.UserSession, err error
 					LastActivity: time.Now(),
 					Revoked:      false,
 				}
+				if existingSessions, errLoad := ctx.Providers.StorageProvider.LoadActiveSessionsByUsername(ctx, userSession.Username); errLoad == nil {
+					for _, s := range existingSessions {
+						if s.ID != sessionHash && s.IPAddress == activeSession.IPAddress && s.UserAgent == activeSession.UserAgent && !s.Revoked {
+							_ = ctx.Providers.StorageProvider.RevokeActiveSessionByID(ctx, s.ID)
+						}
+					}
+				}
 				if errSave := ctx.Providers.StorageProvider.SaveActiveSession(ctx, activeSession); errSave != nil {
 					ctx.Logger.WithError(errSave).Errorf("Failed to save legacy active session in DB for user '%s'", userSession.Username)
 				}
@@ -452,14 +459,22 @@ func (ctx *AutheliaCtx) SaveSession(userSession session.UserSession) error {
 	if userSession.Username != "" {
 		sessionID, err := provider.GetSessionID(ctx.RequestCtx)
 		if err == nil && sessionID != "" {
+			sessionHash := utils.HashSHA256FromString(sessionID)
 			activeSession := model.ActiveSession{
-				ID:           utils.HashSHA256FromString(sessionID),
+				ID:           sessionHash,
 				Username:     userSession.Username,
 				IPAddress:    ctx.RemoteIP().String(),
 				UserAgent:    string(ctx.Request.Header.UserAgent()),
 				CreatedAt:    time.Now(),
 				LastActivity: time.Now(),
 				Revoked:      false,
+			}
+			if existingSessions, errLoad := ctx.Providers.StorageProvider.LoadActiveSessionsByUsername(ctx, userSession.Username); errLoad == nil {
+				for _, s := range existingSessions {
+					if s.ID != sessionHash && s.IPAddress == activeSession.IPAddress && s.UserAgent == activeSession.UserAgent && !s.Revoked {
+						_ = ctx.Providers.StorageProvider.RevokeActiveSessionByID(ctx, s.ID)
+					}
+				}
 			}
 			if errStore := ctx.Providers.StorageProvider.SaveActiveSession(ctx, activeSession); errStore != nil {
 				ctx.Logger.WithError(errStore).Errorf("Failed to save active session in DB for user '%s'", userSession.Username)

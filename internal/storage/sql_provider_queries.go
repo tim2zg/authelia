@@ -664,7 +664,7 @@ const (
 	queryFmtSelectActiveSessionsByUsername = `
 		SELECT id, username, ip_address, user_agent, created_at, last_activity, revoked
 		FROM %s
-		WHERE username = ?
+		WHERE username = ? AND NOT revoked
 		ORDER BY last_activity DESC;`
 
 	queryFmtSelectActiveSessionByID = `
