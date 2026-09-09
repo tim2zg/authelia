@@ -1,4 +1,8 @@
 ---
+# SPDX-FileCopyrightText: 2026 Authelia
+#
+# SPDX-License-Identifier: Apache-2.0
+
 title: "FileRise"
 description: "Integrating FileRise with the Authelia OpenID Connect 1.0 Provider."
 summary: ""
@@ -22,7 +26,7 @@ seo:
 ## Tested Versions
 
 - [Authelia]
-  - [v4.39.22](https://github.com/authelia/authelia/releases/tag/v4.39.22)
+  - [v4.39.23](https://github.com/authelia/authelia/releases/tag/v4.39.23)
 - [FileRise]
   - [v1.3.9](https://github.com/error311/FileRise/releases/tag/v1.3.9)
 

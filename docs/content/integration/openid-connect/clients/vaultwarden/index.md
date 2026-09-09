@@ -1,4 +1,8 @@
 ---
+# SPDX-FileCopyrightText: 2026 Authelia
+#
+# SPDX-License-Identifier: Apache-2.0
+
 title: "Vaultwarden"
 description: "Integrating Vaultwarden with the Authelia OpenID Connect 1.0 Provider."
 summary: ""
@@ -23,7 +27,7 @@ seo:
 ## Tested Versions
 
 - [Authelia]
-  - [v4.39.22](https://github.com/authelia/authelia/releases/tag/v4.39.22)
+  - [v4.39.23](https://github.com/authelia/authelia/releases/tag/v4.39.23)
 - [Vaultwarden]
   - [1.35.0](https://github.com/dani-garcia/vaultwarden/releases/tag/1.35.0)
 

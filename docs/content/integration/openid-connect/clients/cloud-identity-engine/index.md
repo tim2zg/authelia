@@ -1,4 +1,8 @@
 ---
+# SPDX-FileCopyrightText: 2026 Authelia
+#
+# SPDX-License-Identifier: Apache-2.0
+
 title: "Cloud Identity Engine"
 description: "Integrating Cloud Identity Engine with the Authelia OpenID Connect 1.0 Provider."
 summary: ""
@@ -22,7 +26,7 @@ seo:
 ## Tested Versions
 
 - [Authelia]
-  - [v4.39.22](https://github.com/authelia/authelia/releases/tag/v4.39.22)
+  - [v4.39.23](https://github.com/authelia/authelia/releases/tag/v4.39.23)
 - [Cloud Identity Engine]
 
 {{% oidc-common %}}

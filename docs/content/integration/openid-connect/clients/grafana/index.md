@@ -1,4 +1,8 @@
 ---
+# SPDX-FileCopyrightText: 2026 Authelia
+#
+# SPDX-License-Identifier: Apache-2.0
+
 title: "Grafana"
 description: "Integrating Grafana with the Authelia OpenID Connect 1.0 Provider."
 summary: ""
@@ -23,7 +27,7 @@ seo:
 ## Tested Versions
 
 - [Authelia]
-  - [v4.39.22](https://github.com/authelia/authelia/releases/tag/v4.39.22)
+  - [v4.39.23](https://github.com/authelia/authelia/releases/tag/v4.39.23)
 - [Grafana]
   - [v13.1.0](https://github.com/grafana/grafana/releases/tag/v13.1.0)
 

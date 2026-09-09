@@ -1,4 +1,8 @@
 ---
+# SPDX-FileCopyrightText: 2026 Authelia
+#
+# SPDX-License-Identifier: Apache-2.0
+
 title: "Drupal"
 description: "Integrating Drupal with the Authelia OpenID Connect 1.0 Provider."
 summary: ""
@@ -23,7 +27,7 @@ seo:
 ## Tested Versions
 
 - [Authelia]
-  - [v4.39.22](https://github.com/authelia/authelia/releases/tag/v4.39.22)
+  - [v4.39.23](https://github.com/authelia/authelia/releases/tag/v4.39.23)
 - [Drupal]
   - [v10.4.0](https://www.drupal.org/project/drupal/releases/10.4.0)
 

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 Authelia
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package oidc
 
 import (
@@ -677,6 +681,26 @@ func FormIsAuthorizeCodeFlow(form url.Values) (is bool) {
 // RequesterIsAuthorizeCodeFlow evaluates an oauth2.Requester to see if the flow would result in an Authorization Code.
 func RequesterIsAuthorizeCodeFlow(requester oauthelia2.Requester) (is bool) {
 	if ar, ok := requester.(oauthelia2.AuthorizeRequester); ok && ar.GetResponseTypes().Has(ResponseTypeAuthorizationCodeFlow) {
+		return true
+	}
+
+	return false
+}
+
+// AudienceMatchesRequester is used to dynamically match a requested resource to a access requester.
+func AudienceMatchesRequester(strategyAudience oauthelia2.AudienceStrategy, strategyResource oauthelia2.ResourceStrategy, requester oauthelia2.AccessRequester, audience []string) bool {
+	return AudienceMatchesGrantedAudienceOrResource(strategyAudience, requester.GetGrantedAudience(), strategyResource, requester.GetGrantedResource(), audience)
+}
+
+// AudienceMatchesGrantedAudienceOrResource is used to dynamically match a requested resource to raw grants.
+func AudienceMatchesGrantedAudienceOrResource(strategyAudience oauthelia2.AudienceStrategy, grantedAudience oauthelia2.Arguments, strategyResource oauthelia2.ResourceStrategy, grantedResource oauthelia2.Arguments, audience []string) bool {
+	var err error
+
+	if err = strategyAudience(grantedAudience, audience); err == nil {
+		return true
+	}
+
+	if err = strategyResource(grantedResource, audience); err == nil {
 		return true
 	}
 

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 Authelia
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package oidc
 
 import (
@@ -546,6 +550,7 @@ func (c *RegisteredClient) GetConsentResponseBody(session RequesterFormSession, 
 	if session != nil {
 		body.Scopes = session.GetRequestedScopes()
 		body.Audience = session.GetRequestedAudience()
+		body.Resource = session.GetRequestedResource()
 
 		var (
 			claims *ClaimsRequests

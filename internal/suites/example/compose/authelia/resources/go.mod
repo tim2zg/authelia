@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 Authelia
+//
+// SPDX-License-Identifier: Apache-2.0
+
 module resources
 
 go 1.25.1
@@ -34,4 +38,4 @@ require (
 	golang.org/x/telemetry v0.0.0-20260316223853-b6b0c46d1ccd // indirect
 )
 
-replace golang.org/x/net => golang.org/x/net v0.58.0
+replace golang.org/x/net => golang.org/x/net v0.59.0

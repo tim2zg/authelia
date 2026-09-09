@@ -1,4 +1,8 @@
 ---
+# SPDX-FileCopyrightText: 2026 Authelia
+#
+# SPDX-License-Identifier: Apache-2.0
+
 title: "PatchMon"
 description: "Integrating PatchMon with the Authelia OpenID Connect 1.0 Provider."
 summary: ""
@@ -22,7 +26,7 @@ seo:
 ## Tested Versions
 
 - [Authelia]
-  - [v4.39.22](https://github.com/authelia/authelia/releases/tag/v4.39.22)
+  - [v4.39.23](https://github.com/authelia/authelia/releases/tag/v4.39.23)
 - [PatchMon]
   - [v1.4.1](https://github.com/PatchMon/PatchMon/releases/tag/v1.4.1)
 

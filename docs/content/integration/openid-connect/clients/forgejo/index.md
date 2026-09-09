@@ -1,4 +1,8 @@
 ---
+# SPDX-FileCopyrightText: 2026 Authelia
+#
+# SPDX-License-Identifier: Apache-2.0
+
 title: "Forgejo"
 description: "Integrating Forgejo with the Authelia OpenID Connect 1.0 Provider."
 summary: ""
@@ -23,7 +27,7 @@ seo:
 ## Tested Versions
 
 - [Authelia]
-  - [v4.39.22](https://github.com/authelia/authelia/releases/tag/v4.39.22)
+  - [v4.39.23](https://github.com/authelia/authelia/releases/tag/v4.39.23)
 - [Forgejo]
   - [v13.0.2](https://codeberg.org/forgejo/forgejo/releases/tag/v13.0.2)
 

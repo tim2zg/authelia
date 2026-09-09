@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Authelia
+#
+# SPDX-License-Identifier: Apache-2.0
+
 # ========================================
 # ===== Build image for the frontend =====
 # ========================================
@@ -8,7 +12,7 @@ WORKDIR /node/src/app
 COPY --link web ./
 
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-	npm install -g pnpm@11 && \
+	npm install -g pnpm@12 && \
 	pnpm install --frozen-lockfile --ignore-scripts --store-dir /pnpm/store && \
 	pnpm build
 

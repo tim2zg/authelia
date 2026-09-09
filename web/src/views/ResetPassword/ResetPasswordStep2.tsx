@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 Authelia
+//
+// SPDX-License-Identifier: Apache-2.0
+
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Eye, EyeOff } from "lucide-react";
@@ -95,6 +99,8 @@ const ResetPasswordStep2 = function () {
     const doResetPassword = async () => {
         setPassword1("");
         setPassword2("");
+        setErrorPassword1(false);
+        setErrorPassword2(false);
 
         if (password1 === "" || password2 === "") {
             if (password1 === "") {
@@ -129,6 +135,8 @@ const ResetPasswordStep2 = function () {
             } else {
                 createErrorNotification(translate("There was an issue resetting the password"));
             }
+
+            setFormDisabled(false);
         }
     };
 

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 Authelia
+//
+// SPDX-License-Identifier: Apache-2.0
+
 import { ChangeEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useTranslation } from "react-i18next";
@@ -43,6 +47,16 @@ const IdentityVerificationDialog = function (props: Props) {
     const [codeError, setCodeError] = useState(false);
     const [ready, setReady] = useState(false);
     const codeRef = useRef<HTMLInputElement>(null);
+    const timeoutSuccessRef = useRef<null | ReturnType<typeof setTimeout>>(null);
+
+    useEffect(() => {
+        return () => {
+            if (timeoutSuccessRef.current !== null) {
+                clearTimeout(timeoutSuccessRef.current);
+                timeoutSuccessRef.current = null;
+            }
+        };
+    }, []);
 
     const open = useMemo(() => ready && !closing && opening && !!elevation, [ready, closing, opening, elevation]);
 
@@ -79,7 +93,9 @@ const IdentityVerificationDialog = function (props: Props) {
     const handleSuccess = useCallback(() => {
         setSuccess(true);
 
-        setTimeout(() => {
+        timeoutSuccessRef.current = setTimeout(() => {
+            timeoutSuccessRef.current = null;
+
             handleClose(true);
         }, 750);
     }, [handleClose]);

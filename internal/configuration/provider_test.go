@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 Authelia
+//
+// SPDX-License-Identifier: Apache-2.0.
+
 package configuration
 
 import (
@@ -1468,7 +1472,7 @@ func TestConfigurationTemplate(t *testing.T) {
 
 		defer f.Close()
 
-		lints := regexp.MustCompile(`^(\s+)?# yamllint`)
+		lints := regexp.MustCompile(`^(\s+)?# (yamllint|SPDX-FileCopyrightText|SPDX-License-Identifier)`)
 		doc := regexp.MustCompile(`^\s+?## `)
 		commented := regexp.MustCompile(`^(\s+)?# (.*)$`)
 		uncommented := regexp.MustCompile(`^(\s+)?\w+`)
