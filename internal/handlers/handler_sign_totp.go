@@ -181,6 +181,19 @@ func TimeBasedOneTimePasswordPOST(ctx *middlewares.AutheliaCtx) {
 		return
 	}
 
+	if provider, errProvider := ctx.GetSessionProvider(); errProvider == nil {
+		if !provider.Config.DisableRememberMe && userSession.KeepMeLoggedIn {
+			if err = provider.UpdateExpiration(ctx.RequestCtx, provider.Config.RememberMe); err != nil {
+				ctx.GetLogger().WithError(err).Errorf("Error occurred validating a TOTP authentication for user '%s': error updating session expiration", userSession.Username)
+
+				ctx.SetStatusCode(fasthttp.StatusForbidden)
+				ctx.SetJSONError(messageMFAValidationFailed)
+
+				return
+			}
+		}
+	}
+
 	config.UpdateSignInInfo(ctx.GetClock().Now())
 
 	if err = ctx.Providers.StorageProvider.UpdateTOTPConfigurationSignIn(ctx, config.ID, config.LastUsedAt); err != nil {

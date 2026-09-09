@@ -84,6 +84,18 @@ func SecondFactorPasswordPOST(delayer middlewares.Delayer) middlewares.RequestHa
 			return
 		}
 
+		if provider, errProvider := ctx.GetSessionProvider(); errProvider == nil {
+			if !provider.Config.DisableRememberMe && userSession.KeepMeLoggedIn {
+				if err = provider.UpdateExpiration(ctx.RequestCtx, provider.Config.RememberMe); err != nil {
+					ctx.Logger.WithError(err).Errorf("Error occurred validating password authentication for user '%s': error updating session expiration", userSession.Username)
+
+					respondUnauthorized(ctx, messageAuthenticationFailed)
+
+					return
+				}
+			}
+		}
+
 		if err = ctx.SaveSession(userSession); err != nil {
 			ctx.Logger.WithError(err).Errorf(logFmtErrSessionSave, "updated profile", regulation.AuthTypePassword, logFmtActionAuthentication, userSession.Username)
 

@@ -268,12 +268,34 @@ func WebAuthnAssertionPOST(ctx *middlewares.AutheliaCtx) {
 		return
 	}
 
+	if provider, errProvider := ctx.GetSessionProvider(); errProvider == nil {
+		if !provider.Config.DisableRememberMe && userSession.KeepMeLoggedIn {
+			if err = provider.UpdateExpiration(ctx.RequestCtx, provider.Config.RememberMe); err != nil {
+				ctx.Logger.WithError(err).Errorf(logFmtErrSessionSave, "updated expiration", regulation.AuthTypeWebAuthn, logFmtActionAuthentication, userSession.Username)
+
+				ctx.SetStatusCode(fasthttp.StatusForbidden)
+				ctx.SetJSONError(messageMFAValidationFailed)
+
+				return
+			}
+		}
+	}
+
 	doMarkAuthenticationAttempt(ctx, true, regulation.NewBan(regulation.BanTypeNone, userSession.Username, nil), regulation.AuthTypeWebAuthn, nil)
 
 	userSession.SetTwoFactorWebAuthn(ctx.GetClock().Now().UTC(),
 		response.AuthenticatorAttachment == protocol.CrossPlatform,
 		response.Response.AuthenticatorData.Flags.HasUserPresent(),
 		response.Response.AuthenticatorData.Flags.HasUserVerified())
+
+	if err = ctx.SaveSession(userSession); err != nil {
+		ctx.Logger.WithError(err).Errorf("Error occurred validating a WebAuthn authentication challenge for user '%s': %s", userSession.Username, errStrUserSessionDataSave)
+
+		ctx.SetStatusCode(fasthttp.StatusForbidden)
+		ctx.SetJSONError(messageMFAValidationFailed)
+
+		return
+	}
 
 	if len(bodyJSON.Flow) > 0 {
 		handleFlowResponse(ctx, &userSession, bodyJSON.FlowID, bodyJSON.Flow, bodyJSON.SubFlow, bodyJSON.UserCode)

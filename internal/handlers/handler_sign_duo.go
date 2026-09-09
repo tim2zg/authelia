@@ -341,6 +341,18 @@ func HandleAllow(ctx *middlewares.AutheliaCtx, userSession *session.UserSession,
 		return
 	}
 
+	if provider, errProvider := ctx.GetSessionProvider(); errProvider == nil {
+		if !provider.Config.DisableRememberMe && userSession.KeepMeLoggedIn {
+			if err = provider.UpdateExpiration(ctx.RequestCtx, provider.Config.RememberMe); err != nil {
+				ctx.Logger.WithError(err).Errorf(logFmtErrSessionSave, "updated expiration", regulation.AuthTypeDuo, logFmtActionAuthentication, userSession.Username)
+
+				respondUnauthorized(ctx, messageMFAValidationFailed)
+
+				return
+			}
+		}
+	}
+
 	userSession.SetTwoFactorDuo(ctx.GetClock().Now())
 
 	if err = ctx.SaveSession(*userSession); err != nil {
